@@ -10,6 +10,7 @@ import {
 import { TIPOS_CONTA, MESES } from '../config.js';
 import { pageHead, options, moneyInput } from '../ui.js';
 import { esc, num, fmtBRL0, anoAtivo, metaArr } from '../util.js';
+import { baixarModelo, importarArquivo } from '../import.js';
 
 const handle = (id, tbl) => `<td style="width:26px"><span class="drag-handle" draggable="true" data-drag="${id}" data-tbl="${tbl}" title="Arraste para reordenar">⠿</span></td>`;
 const chk = (id, scope) => `<td style="width:26px"><input type="checkbox" class="chk" data-sel="${scope}" value="${id}"></td>`;
@@ -79,6 +80,18 @@ export function render(container) {
   container.innerHTML = `
     ${pageHead('Cadastro', 'Empresa, anos, contas, canais e categorias. Arraste pela alça ⠿ para reordenar; marque para excluir vários.')}
 
+    <div class="card card-pad" style="margin-bottom:16px">
+      <div class="flex" style="justify-content:space-between;flex-wrap:wrap;gap:8px">
+        <div><strong>Importar lançamentos por planilha</strong>
+          <div class="hint">Baixe o modelo, preencha as abas de Vendas/Despesas e importe. Cria anos, canais, contas e recebedores automaticamente.</div></div>
+        <div class="flex">
+          <button class="btn btn-sm" data-action="baixar-modelo">⬇ Baixar modelo (.xlsx)</button>
+          <button class="btn btn-primary btn-sm" data-action="importar">📥 Importar planilha</button>
+          <input type="file" id="import-file" accept=".xlsx,.xls" style="display:none">
+        </div>
+      </div>
+    </div>
+
     <div class="card card-pad">
       <div class="section-title" style="margin-top:0">Dados da empresa</div>
       <div class="form-grid">
@@ -140,6 +153,10 @@ function wire(container, ano) {
 
   container.addEventListener('change', (ev) => {
     const t = ev.target;
+    if (t.id === 'import-file') {
+      if (t.files && t.files[0]) importarArquivo(t.files[0], (r) => alert(`Importação concluída!\n\n${r.vendas} venda(s) e ${r.despesas} despesa(s).\nAnos: ${r.anos.join(', ') || '—'}\nCriados: ${r.canais} canal(is), ${r.contas} conta(s), ${r.fornecedores} recebedor(es), ${r.categorias} categoria(s).`));
+      return;
+    }
     if (t.dataset.emp) setEmpresaCampo(t.dataset.emp, t.value);
     else if (t.dataset.contaId) { const campo = t.dataset.campo; setContaCampo(t.dataset.contaId, campo, campo === 'saldo' ? num(t.value) : t.value); }
     else if (t.dataset.canalId && t.dataset.campo === 'nome') renomearCanal(t.dataset.canalId, t.value);
@@ -170,6 +187,8 @@ function wire(container, ano) {
     else if (action === 'rm-cat') removerCategoria(id);
     else if (action === 'add-forn') addFornecedor();
     else if (action === 'rm-forn') removerFornecedor(id);
+    else if (action === 'baixar-modelo') baixarModelo();
+    else if (action === 'importar') container.querySelector('#import-file').click();
     else if (action === 'add-ano') {
       const a = prompt('Adicionar qual ano?', String(ano + 1)); if (!a) return;
       const y = Number(a); if (!y || y < 1900 || y > 3000) { alert('Ano inválido.'); return; }

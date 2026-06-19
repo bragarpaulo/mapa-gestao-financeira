@@ -2,9 +2,10 @@
 import { getState, addPlataforma, setPlataformaCampo, removerPlataforma, setFluxoMesReceber } from '../store.js';
 import { calcFluxo, contasReceberPorCanal, calcDashboard, calcAging, calcProjecao } from '../calc.js';
 import { MESES } from '../config.js';
-import { pageHead, thMeses, moneyInput, kpi, kpi2 } from '../ui.js';
+import { pageHead, thMeses, moneyInput, exportToolbar, wireExport } from '../ui.js';
 import { esc, num, fmtBRL0, anoAtivo } from '../util.js';
 import * as charts from '../charts.js';
+import { kpisResumoHtml, chartsResumoHtml, montarChartsResumo } from './resumo.js';
 
 function linha(label, arr, totalVal, cls = '') {
   const cells = arr.map(v => `<td class="num ${v < 0 ? 'neg' : ''}">${fmtBRL0(v)}</td>`).join('');
@@ -77,17 +78,13 @@ export function render(container) {
   const mesOpts = MESES.map((m, i) => `<option value="${i}" ${mesReceber === i ? 'selected' : ''}>${m}/${ano}</option>`).join('');
 
   container.innerHTML = `
-    ${pageHead('Fluxo de Caixa', `Saldo, entradas/saídas, projeção e previsões · ${ano}`)}
+    ${pageHead('Fluxo de Caixa', `Resumo, projeção e previsões · ${ano}`)}
+    ${exportToolbar()}
 
     <div class="section-title" style="margin-top:0">Visão de Caixa</div>
-    <div class="grid kpis">
-      ${kpi('Saldo atual', fmtBRL0(d.saldoAtual), { variant: 'k-blue', cls: 'blue' })}
-      ${kpi('Recebimentos', fmtBRL0(d.recebimentos), { variant: 'k-green', cls: 'green' })}
-      ${kpi('Pagamentos', fmtBRL0(d.pagamentos), { variant: 'k-red', cls: 'red' })}
-      ${kpi('Caixa Gerado', fmtBRL0(d.geracaoCaixa), { variant: d.geracaoCaixa >= 0 ? 'k-green' : 'k-red', cls: d.geracaoCaixa >= 0 ? 'green' : 'red' })}
-      ${kpi2('Saldo Provisionado', [['Mês atual', fmtBRL0(d.saldoProvMes)], ['Próximos', fmtBRL0(d.saldoProvProx)]], { variant: 'k-purple' })}
-      ${kpi('Inadimplência', fmtBRL0(d.inadimplencia), { variant: 'k-orange', cls: d.inadimplencia > 0 ? 'red' : '' })}
-    </div>
+    ${kpisResumoHtml(d)}
+    <div class="section-title">Gráficos</div>
+    ${chartsResumoHtml(d)}
 
     <div class="section-title">Projeção de caixa (próximos 30 dias)</div>
     <div class="card chart-box"><div class="chart-canvas-wrap"><canvas id="ch-proj"></canvas></div></div>
@@ -130,7 +127,9 @@ export function render(container) {
     </div>`;
 
   charts.linhaProjecao('ch-proj', proj.labels, proj.saldo);
+  montarChartsResumo(d);
   wire(container);
+  wireExport(container, 'Fluxo-de-Caixa');
 }
 
 function wire(container) {

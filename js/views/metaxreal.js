@@ -2,7 +2,7 @@
 import { getState } from '../store.js';
 import { calcMetaxReal } from '../calc.js';
 import { MESES } from '../config.js';
-import { pageHead, thMeses } from '../ui.js';
+import { pageHead, thMeses, exportToolbar, wireExport } from '../ui.js';
 import { esc, fmtBRL0, fmtPct, anoAtivo } from '../util.js';
 import * as charts from '../charts.js';
 
@@ -40,6 +40,7 @@ export function render(container) {
 
   container.innerHTML = `
     ${pageHead('Meta de Receita × Realizado', `Atingimento acumulado até ${d.mesLabel} · ${ano}`)}
+    ${exportToolbar()}
     <div class="callout">O <strong>% atingido</strong> compara o realizado com a meta do início do ano até ${esc(d.mesLabel)}.</div>
 
     <div class="card chart-box" style="margin-top:14px">
@@ -64,4 +65,5 @@ export function render(container) {
     </div>`;
 
   charts.metaRealChart('ch-mxr', MESES, metaMes, realMes);
+  wireExport(container, 'Meta-x-Real');
 }

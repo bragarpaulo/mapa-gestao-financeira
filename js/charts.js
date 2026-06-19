@@ -4,6 +4,8 @@ export function chartOk() { return typeof Chart !== 'undefined'; }
 export function destroyAll() { Object.keys(instances).forEach(id => { try { instances[id].destroy(); } catch (e) {} delete instances[id]; }); }
 
 const BRLfmt = (v) => 'R$ ' + Number(v).toLocaleString('pt-BR', { maximumFractionDigits: 0 });
+const BRLfull = (v) => 'R$ ' + Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const tooltipBRL = { callbacks: { label: (ctx) => { const v = ctx.parsed?.y ?? ctx.parsed?.x ?? ctx.parsed; return `${ctx.dataset.label ? ctx.dataset.label + ': ' : ''}${BRLfull(v)}`; } } };
 export const PALETA = ['#1D4ED8', '#16A34A', '#7C3AED', '#F97316', '#0891B2', '#EF4444', '#F59E0B', '#10B981', '#3B82F6', '#DB2777', '#65A30D', '#475569'];
 
 function make(id, config, onClick) {
@@ -22,7 +24,7 @@ function make(id, config, onClick) {
 
 const gridOpts = (brlAxis = 'y') => ({
   responsive: true, maintainAspectRatio: false,
-  plugins: { legend: { labels: { boxWidth: 12, font: { size: 11 } } } },
+  plugins: { legend: { labels: { boxWidth: 12, font: { size: 11 } } }, tooltip: tooltipBRL },
   scales: {
     x: { ticks: { font: { size: 10 }, callback: brlAxis === 'x' ? BRLfmt : undefined }, grid: { color: '#eef2f7' } },
     y: { ticks: { font: { size: 10 }, callback: brlAxis === 'y' ? BRLfmt : undefined }, grid: { color: '#eef2f7' } },
@@ -55,7 +57,7 @@ export function pizza(id, labels, valores, onClick) {
   return make(id, {
     type: 'doughnut',
     data: { labels, datasets: [{ data: valores, backgroundColor: labels.map((_, i) => PALETA[i % PALETA.length]), borderWidth: 1, borderColor: '#fff' }] },
-    options: { responsive: true, maintainAspectRatio: false, cutout: '58%', plugins: { legend: { position: 'right', labels: { boxWidth: 12, font: { size: 10 } } } } },
+    options: { responsive: true, maintainAspectRatio: false, cutout: '58%', plugins: { legend: { position: 'right', labels: { boxWidth: 12, font: { size: 10 } } }, tooltip: { callbacks: { label: (ctx) => `${ctx.label}: ${BRLfull(ctx.parsed)}` } } } },
   }, onClick);
 }
 
@@ -74,8 +76,8 @@ export function metaRealChart(id, labels, meta, real) {
 export function linhaProjecao(id, labels, valores) {
   return make(id, {
     type: 'line',
-    data: { labels, datasets: [{ label: 'Saldo projetado', data: valores, borderColor: '#1D4ED8', backgroundColor: 'rgba(29,78,216,.12)', fill: true, tension: .25, pointRadius: 1 }] },
-    options: gridOpts('y'),
+    data: { labels, datasets: [{ label: 'Saldo projetado', data: valores, borderColor: '#1D4ED8', backgroundColor: 'rgba(29,78,216,.12)', fill: true, tension: .25, pointRadius: 3, pointHoverRadius: 6, pointBackgroundColor: '#1D4ED8' }] },
+    options: { ...gridOpts('y'), interaction: { mode: 'index', intersect: false } },
   });
 }
 

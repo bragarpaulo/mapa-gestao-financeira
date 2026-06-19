@@ -1,7 +1,7 @@
 // views/metas.js — Controle de Metas (painel de acompanhamento, YTD).
 import { getState } from '../store.js';
 import { calcControleMetas } from '../calc.js';
-import { pageHead, gauge, fmtBRL0, fmtPct } from '../ui.js';
+import { pageHead, gauge, fmtBRL0, fmtPct, exportToolbar, wireExport } from '../ui.js';
 import { esc } from '../util.js';
 
 export function render(container) {
@@ -24,6 +24,7 @@ export function render(container) {
 
   container.innerHTML = `
     ${pageHead('Controle de Metas', `Acompanhamento acumulado até ${m.mesLabel} · ${m.ano}`)}
+    ${exportToolbar()}
     <div class="callout">Indicadores no formato <strong>YTD</strong> — comparam o realizado com a meta do início do ano até hoje.</div>
     <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(240px,1fr));margin-top:14px">
       ${cardGauge(m.receita, 'var(--green)', 'Meta de Receita', m.receita.real, m.receita.meta)}
@@ -38,4 +39,5 @@ export function render(container) {
         <tbody>${canalRows}</tbody>
       </table>
     </div>`;
+  wireExport(container, 'Controle-de-Metas');
 }

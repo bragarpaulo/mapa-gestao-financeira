@@ -107,9 +107,9 @@ export const ABAS = [
   { id: 'dre',        nome: 'DRE (Anual)',              icone: ICONES.dre },
   { id: 'dfc',        nome: 'DFC (Anual)',              icone: ICONES.dfc },
   { id: 'fluxo',      nome: 'Fluxo de Caixa',           icone: ICONES.fluxo },
-  { id: 'cadastro',   nome: 'Cadastro',                 icone: ICONES.cadastro },
   { id: 'metas',      nome: 'Controle de Metas',        icone: ICONES.metas },
   { id: 'orcamento',  nome: 'Orçamento de Despesas',    icone: ICONES.orcamento },
   { id: 'planxreal',  nome: 'Orçado × Realizado',       icone: ICONES.planxreal },
   { id: 'metaxreal',  nome: 'Meta de Receita × Realizado', icone: ICONES.metaxreal },
+  { id: 'cadastro',   nome: 'Cadastro',                 icone: ICONES.cadastro },
 ];

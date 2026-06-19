@@ -9,6 +9,7 @@ import { ABAS } from './config.js';
 import { esc } from './util.js';
 import * as charts from './charts.js';
 import * as store from './store.js';
+import * as importmod from './import.js';
 
 import * as inicio from './views/inicio.js';
 import * as dashboard from './views/dashboard.js';
@@ -87,7 +88,8 @@ function renderView() {
   const route = currentRoute();
   const sameRoute = route === lastRoute;
   const scEl = document.scrollingElement || document.documentElement;
-  const sc = scEl.scrollTop;               // preserva scroll em re-render da mesma rota
+  const sc = scEl.scrollTop;               // preserva scroll da página
+  const fsc = contentEl.querySelector('.tbl-frozen')?.scrollTop ?? 0; // e da tabela congelada
   const root = document.createElement('div');
   contentEl.replaceChildren(root);
   try { VIEWS[route].render(root); }
@@ -96,6 +98,7 @@ function renderView() {
   empresaEl.textContent = getState().empresa.nome || 'GPR';
   renderTopbar();
   scEl.scrollTop = sameRoute ? sc : 0;     // mesma rota: mantém posição; nova rota: topo
+  if (sameRoute) { const fz = contentEl.querySelector('.tbl-frozen'); if (fz) fz.scrollTop = fsc; }
   lastRoute = route;
 }
 
@@ -108,6 +111,7 @@ initCloud().then(ok => { if (ok) renderTopbar(); });
 
 window.__MGF = { renderView, getState };
 window.__store = store; // hook de depuração/verificação
+window.__import = importmod;
 
 document.getElementById('btn-restaurar').addEventListener('click', () => { if (confirm('Restaurar os dados de demonstração? Substitui os dados atuais.')) resetDemo(); });
 document.getElementById('btn-limpar').addEventListener('click', () => { if (confirm('Apagar os dados da empresa atual e começar do zero?')) clearAll(); });

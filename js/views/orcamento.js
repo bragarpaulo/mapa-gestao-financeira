@@ -2,7 +2,7 @@
 import { getState, setOrcamento } from '../store.js';
 import { GRUPOS } from '../config.js';
 import { calcOrcamento } from '../calc.js';
-import { pageHead, thMeses, moneyInput } from '../ui.js';
+import { pageHead, thMeses, moneyInput, exportToolbar, wireExport } from '../ui.js';
 import { esc, num, fmtBRL0, anoAtivo } from '../util.js';
 
 const GTITULO = Object.fromEntries(GRUPOS.map(g => [g.id, g.titulo.replace('(-) Total', 'Orçado').replace('(-)', 'Orçado')]));
@@ -47,6 +47,7 @@ export function render(container) {
 
   container.innerHTML = `
     ${pageHead('Orçamento de Despesas', `Planejamento de ${ano} · Meta de Receita vem dos canais (Cadastro).`)}
+    ${exportToolbar()}
     <div class="callout">Edite os valores por categoria. Os grupos e metas são calculados automaticamente. Cada ano tem seu próprio orçamento.</div>
     <div class="table-wrap" style="margin-top:14px">
       <table>
@@ -61,4 +62,5 @@ export function render(container) {
       setOrcamento(ano, t.dataset.catId, Number(t.dataset.mes), num(t.value));
     }
   });
+  wireExport(container, 'Orcamento');
 }

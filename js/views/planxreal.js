@@ -2,7 +2,7 @@
 import { getState } from '../store.js';
 import { GRUPOS } from '../config.js';
 import { calcPlanxReal } from '../calc.js';
-import { pageHead } from '../ui.js';
+import { pageHead, exportToolbar, wireExport } from '../ui.js';
 import { esc, fmtBRL0, fmtPct, anoAtivo } from '../util.js';
 
 const GTITULO = Object.fromEntries(GRUPOS.map(g => [g.id, g.titulo]));
@@ -41,6 +41,7 @@ export function render(container) {
 
   container.innerHTML = `
     ${pageHead('Orçado × Realizado — Despesas', `Orçado x Realizado (Total Ano) · ${anoAtivo(s)}`)}
+    ${exportToolbar()}
     <div class="hint" style="margin-bottom:10px">Realizado = despesas da DRE (competência). Diferença em vermelho = estourou o orçamento.</div>
     <div class="table-wrap">
       <table>
@@ -48,4 +49,5 @@ export function render(container) {
         <tbody>${body}</tbody>
       </table>
     </div>`;
+  wireExport(container, 'Orcado-x-Realizado');
 }

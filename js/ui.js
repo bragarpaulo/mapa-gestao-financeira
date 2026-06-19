@@ -82,27 +82,69 @@ export function seg(name, opts, active) {
   return `<div class="seg" data-seg="${name}">` + opts.map(o => `<button class="${o.val === active ? 'active' : ''}" data-seg-val="${o.val}">${esc(o.label)}</button>`).join('') + `</div>`;
 }
 
-// Barra de exportação (Imprimir/PDF + CSV).
+// Barra de exportação (CSV + Imagem PNG + PDF + Imprimir).
 export function exportToolbar() {
-  return `<div class="toolbar no-print" style="justify-content:flex-end;gap:8px">
-    <button class="btn btn-sm" data-export="print">🖨 Imprimir / PDF</button>
-    <button class="btn btn-sm" data-export="csv">⬇ Exportar CSV</button></div>`;
+  return `<div class="toolbar no-print" style="justify-content:flex-end;gap:8px;flex-wrap:wrap">
+    <button class="btn btn-sm" data-export="csv">⬇ CSV</button>
+    <button class="btn btn-sm" data-export="png">🖼️ Imagem</button>
+    <button class="btn btn-sm" data-export="pdf">📄 PDF</button>
+    <button class="btn btn-sm" data-export="print">🖨 Imprimir</button></div>`;
 }
+
+function baixar(href, nome) { const a = document.createElement('a'); a.href = href; a.download = nome; a.click(); }
+
+function tabelaParaCsv(container, filename) {
+  const tbl = container.querySelector('table'); if (!tbl) { alert('Sem tabela para exportar nesta tela.'); return; }
+  const csv = [...tbl.querySelectorAll('tr')].map(tr =>
+    [...tr.querySelectorAll('th,td')].map(cell => {
+      const f = cell.querySelector('input,select');
+      const v = f ? (f.tagName === 'SELECT' ? f.options[f.selectedIndex]?.text : f.value) : cell.textContent;
+      return '"' + String(v ?? '').trim().replace(/"/g, '""') + '"';
+    }).join(';')
+  ).join('\n');
+  const url = URL.createObjectURL(new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' }));
+  baixar(url, filename + '.csv'); URL.revokeObjectURL(url);
+}
+
+async function capturar(container) {
+  if (typeof html2canvas === 'undefined') { alert('Biblioteca de imagem não carregou (sem internet?).'); return null; }
+  const ocultos = [...container.querySelectorAll('.no-print')];
+  ocultos.forEach(e => { e.dataset._d = e.style.display; e.style.display = 'none'; });
+  const canvas = await html2canvas(container, { backgroundColor: '#ffffff', scale: 2, useCORS: true, logging: false });
+  ocultos.forEach(e => { e.style.display = e.dataset._d || ''; });
+  return canvas;
+}
+
+async function exportarPng(container, filename) {
+  const canvas = await capturar(container); if (!canvas) return;
+  baixar(canvas.toDataURL('image/png'), filename + '.png');
+}
+
+async function exportarPdf(container, filename) {
+  const canvas = await capturar(container); if (!canvas) return;
+  const jspdf = window.jspdf && window.jspdf.jsPDF;
+  if (!jspdf) { alert('Biblioteca de PDF não carregou (sem internet?).'); return; }
+  const pdf = new jspdf({ orientation: 'p', unit: 'pt', format: 'a4' });
+  const pw = pdf.internal.pageSize.getWidth(), ph = pdf.internal.pageSize.getHeight();
+  const m = 20, iw = pw - m * 2, ih = canvas.height * iw / canvas.width;
+  const img = canvas.toDataURL('image/png');
+  let heightLeft = ih, position = m;
+  pdf.addImage(img, 'PNG', m, position, iw, ih);
+  heightLeft -= (ph - m * 2);
+  while (heightLeft > 0) { position = m - (ih - heightLeft); pdf.addPage(); pdf.addImage(img, 'PNG', m, position, iw, ih); heightLeft -= (ph - m * 2); }
+  pdf.save(filename + '.pdf');
+}
+
 export function wireExport(container, filename = 'gpr') {
-  container.addEventListener('click', (e) => {
+  container.addEventListener('click', async (e) => {
     const b = e.target.closest('[data-export]'); if (!b) return;
-    if (b.dataset.export === 'print') { window.print(); return; }
-    const tbl = container.querySelector('table'); if (!tbl) return;
-    const csv = [...tbl.querySelectorAll('tr')].map(tr =>
-      [...tr.querySelectorAll('th,td')].map(cell => {
-        const f = cell.querySelector('input,select');
-        const v = f ? (f.tagName === 'SELECT' ? f.options[f.selectedIndex]?.text : f.value) : cell.textContent;
-        return '"' + String(v ?? '').trim().replace(/"/g, '""') + '"';
-      }).join(';')
-    ).join('\n');
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' }));
-    a.download = filename + '.csv'; a.click(); URL.revokeObjectURL(a.href);
+    const tipo = b.dataset.export;
+    if (tipo === 'print') { window.print(); return; }
+    if (tipo === 'csv') { tabelaParaCsv(container, filename); return; }
+    const txt = b.textContent; b.textContent = '...'; b.disabled = true;
+    try { if (tipo === 'png') await exportarPng(container, filename); else if (tipo === 'pdf') await exportarPdf(container, filename); }
+    catch (err) { console.error(err); alert('Falha ao exportar: ' + err.message); }
+    finally { b.textContent = txt; b.disabled = false; }
   });
 }
 
