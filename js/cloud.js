@@ -17,15 +17,14 @@ export function cloudEnabled() {
 }
 
 let _client = null;
-let _createClient = null;
 
+// Usa o SDK carregado via <script> (UMD global `supabase`) — mais confiável que import dinâmico.
 async function getClient() {
   if (_client) return _client;
   if (!cloudEnabled()) return null;
-  if (!_createClient) {
-    ({ createClient: _createClient } = await import('https://esm.sh/@supabase/supabase-js@2'));
-  }
-  _client = _createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { persistSession: false } });
+  const lib = (typeof window !== 'undefined') ? window.supabase : (typeof supabase !== 'undefined' ? supabase : null);
+  if (!lib || !lib.createClient) { console.warn('[cloud] SDK Supabase não carregado'); return null; }
+  _client = lib.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { persistSession: false } });
   return _client;
 }
 
