@@ -110,8 +110,31 @@ async function capturar(container) {
   if (typeof html2canvas === 'undefined') { alert('Biblioteca de imagem não carregou (sem internet?).'); return null; }
   const ocultos = [...container.querySelectorAll('.no-print')];
   ocultos.forEach(e => { e.dataset._d = e.style.display; e.style.display = 'none'; });
-  const canvas = await html2canvas(container, { backgroundColor: '#ffffff', scale: 2, useCORS: true, logging: false });
-  ocultos.forEach(e => { e.style.display = e.dataset._d || ''; });
+
+  // Expande TODOS os contêineres com rolagem para capturar a tabela inteira (e não só o visível).
+  const scrollers = [...container.querySelectorAll('.tbl-frozen, .table-wrap')];
+  const saved = scrollers.map(e => ({ e, maxHeight: e.style.maxHeight, height: e.style.height, overflow: e.style.overflow, overflowX: e.style.overflowX, overflowY: e.style.overflowY, width: e.style.width }));
+  scrollers.forEach(e => { e.style.maxHeight = 'none'; e.style.height = 'auto'; e.style.overflow = 'visible'; e.style.overflowX = 'visible'; e.style.overflowY = 'visible'; });
+
+  // Largura/altura totais (inclui colunas que estavam fora da tela à direita).
+  const tabelas = [...container.querySelectorAll('table')];
+  const fullW = Math.ceil(Math.max(container.scrollWidth, ...tabelas.map(t => t.scrollWidth), 0)) + 8;
+  const wSalva = container.style.width;
+  container.style.width = fullW + 'px';
+  void container.offsetHeight;                       // força reflow síncrono (confiável mesmo em aba inativa)
+  const fullH = Math.ceil(container.scrollHeight) + 8;
+
+  let canvas = null;
+  try {
+    canvas = await html2canvas(container, {
+      backgroundColor: '#ffffff', scale: 2, useCORS: true, logging: false,
+      width: fullW, height: fullH, windowWidth: fullW, windowHeight: fullH, scrollX: 0, scrollY: 0,
+    });
+  } finally {
+    container.style.width = wSalva;
+    saved.forEach(s => { s.e.style.maxHeight = s.maxHeight; s.e.style.height = s.height; s.e.style.overflow = s.overflow; s.e.style.overflowX = s.overflowX; s.e.style.overflowY = s.overflowY; s.e.style.width = s.width; });
+    ocultos.forEach(e => { e.style.display = e.dataset._d || ''; delete e.dataset._d; });
+  }
   return canvas;
 }
 
@@ -124,7 +147,8 @@ async function exportarPdf(container, filename) {
   const canvas = await capturar(container); if (!canvas) return;
   const jspdf = window.jspdf && window.jspdf.jsPDF;
   if (!jspdf) { alert('Biblioteca de PDF não carregou (sem internet?).'); return; }
-  const pdf = new jspdf({ orientation: 'p', unit: 'pt', format: 'a4' });
+  const landscape = canvas.width > canvas.height * 1.25;   // tabela larga → paisagem
+  const pdf = new jspdf({ orientation: landscape ? 'l' : 'p', unit: 'pt', format: 'a4' });
   const pw = pdf.internal.pageSize.getWidth(), ph = pdf.internal.pageSize.getHeight();
   const m = 20, iw = pw - m * 2, ih = canvas.height * iw / canvas.width;
   const img = canvas.toDataURL('image/png');
