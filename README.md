@@ -1,9 +1,10 @@
-# Mapa da Gestão Financeira — MVP Web
+# GPR — Gestão Para Resultado
 
-Protótipo web (HTML + CSS + JS puro, **sem backend e sem banco de dados**) que reproduz a
-planilha **"Mapa da Gestão Financeira V.2"** como um sistema navegável. Todos os cálculos
-(DRE, DFC, Fluxo de Caixa, Orçamento, Plan×Real, Meta×Real, Dashboard) são fiéis às fórmulas
-da planilha. Os dados ficam no **localStorage** do navegador.
+Sistema web (HTML + CSS + JS puro) que reproduz a planilha **"Mapa da Gestão Financeira V.2"**
+como um sistema navegável, com identidade visual **GPR**, **responsivo** (menu hambúrguer no celular)
+e **multi-ano**. Todos os cálculos (DRE, DFC, Fluxo de Caixa, Orçamento, Orçado×Realizado,
+Meta×Real, Controle de Metas, Dashboard) são fiéis às fórmulas da planilha.
+Os dados ficam no **localStorage** e, quando configurado, sincronizam em **tempo real** via Supabase.
 
 ## Como rodar
 Por usar ES modules, precisa ser servido por HTTP (não abra via `file://`):

@@ -3,14 +3,15 @@ import { getState, addDespesa, duplicarDespesa, removerDespesa, setDespesaCampo,
 import { despesaDerivada } from '../calc.js';
 import { STATUS_DESPESA, FORMAS_PAGAMENTO } from '../config.js';
 import { pageHead, options, badgeDespesa, moneyInput } from '../ui.js';
-import { esc, num, fmtBRL0, chavesAno } from '../util.js';
+import { esc, num, fmtBRL0, chavesAno, anoAtivo } from '../util.js';
 
 export function render(container) {
   const s = getState();
-  const filtro = s.ui.despesasFiltro || { status: '', busca: '' };
-  const compOpts = chavesAno(s.empresa.anoVigente).map(k => ({ id: k, nome: k }));
+  const filtro = s.ui.despesasFiltro || { status: '', busca: '', categoria: '' };
+  const compOpts = chavesAno(anoAtivo(s)).map(k => ({ id: k, nome: k }));
   let linhas = s.despesas.map(despesaDerivada);
   if (filtro.status) linhas = linhas.filter(d => d.status === filtro.status);
+  if (filtro.categoria) linhas = linhas.filter(d => d.categoriaId === filtro.categoria);
   if (filtro.busca) {
     const q = filtro.busca.toLowerCase();
     linhas = linhas.filter(d => `${d.descricao} ${d.fornecedor}`.toLowerCase().includes(q));
@@ -45,6 +46,10 @@ export function render(container) {
         <option value="">Todos os status</option>
         ${Object.values(STATUS_DESPESA).map(st => `<option value="${st}" ${filtro.status === st ? 'selected' : ''}>${st}</option>`).join('')}
       </select>
+      <select id="f-cat" title="Filtrar por categoria">
+        <option value="">Todas as categorias</option>
+        ${s.categorias.map(c => `<option value="${c.id}" ${filtro.categoria === c.id ? 'selected' : ''}>${esc(c.nome)}</option>`).join('')}
+      </select>
       <input id="f-busca" type="text" placeholder="Buscar descrição / fornecedor (Enter)" value="${esc(filtro.busca)}">
       <div class="spacer"></div>
       <span class="hint">${linhas.length} linha(s) · Total ${fmtBRL0(totalValor)}</span>
@@ -68,6 +73,7 @@ function wire(container) {
   container.addEventListener('change', (ev) => {
     const t = ev.target;
     if (t.id === 'f-status') { setDespesasFiltro({ status: t.value }); return; }
+    if (t.id === 'f-cat') { setDespesasFiltro({ categoria: t.value }); return; }
     if (t.id === 'f-busca') { setDespesasFiltro({ busca: t.value }); return; }
     if (t.dataset.id && t.dataset.campo) {
       const campo = t.dataset.campo;

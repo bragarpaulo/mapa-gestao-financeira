@@ -2,7 +2,7 @@
 import { getState, renomearCategoria } from '../store.js';
 import { GRUPOS } from '../config.js';
 import { pageHead, thMeses } from '../ui.js';
-import { esc, fmtBRL0, fmtPct } from '../util.js';
+import { esc, fmtBRL0, fmtPct, anoAtivo } from '../util.js';
 
 const GTITULO = Object.fromEntries(GRUPOS.map(g => [g.id, g.titulo]));
 
@@ -65,7 +65,7 @@ export function renderDemonstrativo(container, { titulo, sub, result }) {
     ${pageHead(titulo, sub)}
     <div class="table-wrap">
       <table>
-        <thead><tr><th style="min-width:280px">Grupo / Categoria</th>${thMeses(s.empresa.anoVigente)}</tr></thead>
+        <thead><tr><th style="min-width:280px">Grupo / Categoria</th>${thMeses(anoAtivo(s))}</tr></thead>
         <tbody>${body}</tbody>
       </table>
     </div>

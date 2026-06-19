@@ -5,7 +5,7 @@ import {
 import { calcFluxo, contasReceberPorCanal } from '../calc.js';
 import { MESES } from '../config.js';
 import { pageHead, thMeses, moneyInput } from '../ui.js';
-import { esc, num, fmtBRL0 } from '../util.js';
+import { esc, num, fmtBRL0, anoAtivo } from '../util.js';
 
 function linha(label, arr, totalVal, cls = '') {
   const cells = arr.map(v => `<td class="num ${v < 0 ? 'neg' : ''}">${fmtBRL0(v)}</td>`).join('');
@@ -15,8 +15,9 @@ function linha(label, arr, totalVal, cls = '') {
 
 export function render(container) {
   const s = getState();
+  const ano = anoAtivo(s);
   const f = calcFluxo(s);
-  const mesReceber = s.ui.fluxoMesReceber ?? s.ui.periodoMes ?? Math.min(new Date().getMonth(), 11);
+  const mesReceber = s.ui.fluxoMesReceber ?? Math.min(new Date().getMonth(), 11);
 
   const sum = (a) => a.reduce((x, y) => x + y, 0);
 
@@ -63,13 +64,13 @@ export function render(container) {
   const crRows = cr.map(x => `<tr><td>${esc(x.canal)}</td><td class="num">${fmtBRL0(x.valor)}</td></tr>`).join('')
     || `<tr><td colspan="2" class="empty">Sem canais cadastrados.</td></tr>`;
   const crTotal = cr.reduce((a, x) => a + x.valor, 0);
-  const mesOpts = MESES.map((m, i) => `<option value="${i}" ${mesReceber === i ? 'selected' : ''}>${m}/${s.empresa.anoVigente}</option>`).join('');
+  const mesOpts = MESES.map((m, i) => `<option value="${i}" ${mesReceber === i ? 'selected' : ''}>${m}/${ano}</option>`).join('');
 
   container.innerHTML = `
-    ${pageHead('Fluxo de Caixa', `Saldo, entradas/saídas e previsões · ${s.empresa.anoVigente}`)}
+    ${pageHead('Fluxo de Caixa', `Saldo, entradas/saídas e previsões · ${ano}`)}
     <div class="table-wrap">
       <table>
-        <thead><tr><th style="min-width:200px">Fluxo de Caixa</th>${thMeses(s.empresa.anoVigente)}</tr></thead>
+        <thead><tr><th style="min-width:200px">Fluxo de Caixa</th>${thMeses(ano)}</tr></thead>
         <tbody>${body}</tbody>
       </table>
     </div>

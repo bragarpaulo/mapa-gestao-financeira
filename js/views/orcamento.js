@@ -3,7 +3,7 @@ import { getState, setOrcamento } from '../store.js';
 import { GRUPOS } from '../config.js';
 import { calcOrcamento } from '../calc.js';
 import { pageHead, thMeses, moneyInput } from '../ui.js';
-import { esc, num, fmtBRL0 } from '../util.js';
+import { esc, num, fmtBRL0, anoAtivo } from '../util.js';
 
 const GTITULO = Object.fromEntries(GRUPOS.map(g => [g.id, g.titulo.replace('(-) Total', 'Orçado').replace('(-)', 'Orçado')]));
 
@@ -15,6 +15,7 @@ function linhaDerivada(label, arr, cls) {
 
 export function render(container) {
   const s = getState();
+  const ano = anoAtivo(s);
   const o = calcOrcamento(s);
 
   const catRow = (cat) => {
@@ -45,11 +46,11 @@ export function render(container) {
   ].join('');
 
   container.innerHTML = `
-    ${pageHead('Orçamento de Despesas', 'Planeje quanto pretende gastar por categoria. A Meta de Receita vem dos canais (Cadastro).')}
-    <div class="callout">Edite os valores em branco por categoria. Os grupos e metas são calculados automaticamente.</div>
+    ${pageHead('Orçamento de Despesas', `Planejamento de ${ano} · Meta de Receita vem dos canais (Cadastro).`)}
+    <div class="callout">Edite os valores por categoria. Os grupos e metas são calculados automaticamente. Cada ano tem seu próprio orçamento.</div>
     <div class="table-wrap" style="margin-top:14px">
       <table>
-        <thead><tr><th style="min-width:260px">Grupo / Categoria</th>${thMeses(s.empresa.anoVigente)}</tr></thead>
+        <thead><tr><th style="min-width:260px">Grupo / Categoria</th>${thMeses(ano)}</tr></thead>
         <tbody>${body}</tbody>
       </table>
     </div>`;
@@ -57,7 +58,7 @@ export function render(container) {
   container.addEventListener('change', (ev) => {
     const t = ev.target;
     if (t.dataset.catId && t.dataset.mes !== undefined) {
-      setOrcamento(t.dataset.catId, Number(t.dataset.mes), num(t.value));
+      setOrcamento(ano, t.dataset.catId, Number(t.dataset.mes), num(t.value));
     }
   });
 }

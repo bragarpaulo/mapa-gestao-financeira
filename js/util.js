@@ -113,3 +113,32 @@ export function uid(prefix = 'id') {
   _seq += 1;
   return `${prefix}_${Date.now().toString(36)}_${_seq}`;
 }
+
+// ---- Multi-ano -----------------------------------------------------------
+// Ano ativo selecionado. Fallback: último ano gerenciado, anoVigente (legado) ou ano atual.
+export function anoAtivo(s) {
+  const ui = s && s.ui;
+  if (ui && ui.anoAtivo) return Number(ui.anoAtivo);
+  const anos = s && s.empresa && s.empresa.anos;
+  if (anos && anos.length) return Number(anos[anos.length - 1]);
+  if (s && s.empresa && s.empresa.anoVigente) return Number(s.empresa.anoVigente);
+  return new Date().getFullYear();
+}
+
+// Meses decorridos para YTD: ano passado = 12, ano atual = mês corrente (1..12), futuro = 0.
+export function mesesDecorridos(ano) {
+  const hoje = new Date();
+  const y = hoje.getFullYear();
+  if (ano < y) return 12;
+  if (ano > y) return 0;
+  return hoje.getMonth() + 1;
+}
+
+// Acessores por ano (com defaults seguros).
+export function metaArr(canal, ano) {
+  const m = canal && canal.metas && canal.metas[ano];
+  return Array.isArray(m) ? m.map(num) : Array(12).fill(0);
+}
+export function orcAno(s, ano) {
+  return (s.orcamento && s.orcamento[ano]) || {};
+}

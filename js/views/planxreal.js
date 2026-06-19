@@ -3,7 +3,7 @@ import { getState } from '../store.js';
 import { GRUPOS } from '../config.js';
 import { calcPlanxReal } from '../calc.js';
 import { pageHead } from '../ui.js';
-import { esc, fmtBRL0, fmtPct } from '../util.js';
+import { esc, fmtBRL0, fmtPct, anoAtivo } from '../util.js';
 
 const GTITULO = Object.fromEntries(GRUPOS.map(g => [g.id, g.titulo]));
 
@@ -40,7 +40,7 @@ export function render(container) {
   body += linha('TOTAL DE DESPESAS', gOrc, gReal, 'row-total');
 
   container.innerHTML = `
-    ${pageHead('Plan × Real — Orçamento de Despesas', `Orçado x Realizado (Total Ano) · ${s.empresa.anoVigente}`)}
+    ${pageHead('Orçado × Realizado — Despesas', `Orçado x Realizado (Total Ano) · ${anoAtivo(s)}`)}
     <div class="hint" style="margin-bottom:10px">Realizado = despesas da DRE (competência). Diferença em vermelho = estourou o orçamento.</div>
     <div class="table-wrap">
       <table>

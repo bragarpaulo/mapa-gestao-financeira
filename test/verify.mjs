@@ -11,7 +11,7 @@ const s = {
   ...demoData(ano),
   categorias: DEFAULT_CATEGORIES.map(c => ({ ...c })),
   receitaCategorias: DEFAULT_RECEITA_CATEGORIES.map(c => ({ ...c })),
-  ui: { periodoMes: 5 },
+  ui: { anoAtivo: ano, periodoMeses: [] },
 };
 
 let pass = 0, fail = 0;
@@ -98,7 +98,7 @@ check('Existe venda Concluído', (statusCount['Concluído'] || 0) > 0);
 check('Existem status previstos/atrasados em vendas', (statusCount['Previsto'] || 0) + (statusCount['Atrasado'] || 0) + (statusCount['Previsto Para Hoje'] || 0) > 0);
 
 console.log('\n== DASHBOARD (Total Ano) ==');
-const dashAno = calcDashboard({ ...s, ui: { periodoMes: null } });
+const dashAno = calcDashboard({ ...s, ui: { ...s.ui, periodoMeses: [] } });
 console.log(`  Receita: ${brl(dashAno.receita)} | Despesa: ${brl(dashAno.despesaTotal)} | Lucro: ${brl(dashAno.lucro)}`);
 console.log(`  À vista: ${brl(dashAno.aVista)} | A prazo: ${brl(dashAno.aPrazo)}`);
 console.log(`  Saldo atual: ${brl(dashAno.saldoAtual)} | Recebimentos: ${brl(dashAno.recebimentos)} | Pagamentos: ${brl(dashAno.pagamentos)}`);
@@ -110,7 +110,7 @@ console.log(`  Margem líquida: ${(margem * 100).toFixed(1)}%`);
 
 console.log('\n== META x REAL / PLAN x REAL ==');
 const mxr = calcMetaxReal(s);
-const realCanal = mxr.reduce((a, c) => a + c.realTotal, 0);
+const realCanal = mxr.canais.reduce((a, c) => a + c.realTotal, 0);
 check('Meta×Real: realizado por canal = soma das vendas', approx(realCanal, totalVendas), `(${brl(realCanal)} vs ${brl(totalVendas)})`);
 const pxr = calcPlanxReal(s);
 const realDesp = pxr.reduce((a, c) => a + c.realizadoTotal, 0);

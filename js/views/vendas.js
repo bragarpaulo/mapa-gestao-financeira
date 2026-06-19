@@ -7,9 +7,10 @@ import { esc, num, fmtBRL0 } from '../util.js';
 
 export function render(container) {
   const s = getState();
-  const filtro = s.ui.vendasFiltro || { status: '', busca: '' };
+  const filtro = s.ui.vendasFiltro || { status: '', busca: '', canal: '' };
   let linhas = s.vendas.map(vendaDerivada);
   if (filtro.status) linhas = linhas.filter(v => v.status === filtro.status);
+  if (filtro.canal) linhas = linhas.filter(v => v.canalId === filtro.canal);
   if (filtro.busca) {
     const q = filtro.busca.toLowerCase();
     linhas = linhas.filter(v => `${v.pedido} ${v.produto} ${v.cliente}`.toLowerCase().includes(q));
@@ -46,6 +47,10 @@ export function render(container) {
         <option value="">Todos os status</option>
         ${Object.values(STATUS_VENDA).map(st => `<option value="${st}" ${filtro.status === st ? 'selected' : ''}>${st}</option>`).join('')}
       </select>
+      <select id="f-canal" title="Filtrar por canal">
+        <option value="">Todos os canais</option>
+        ${s.canais.map(c => `<option value="${c.id}" ${filtro.canal === c.id ? 'selected' : ''}>${esc(c.nome)}</option>`).join('')}
+      </select>
       <input id="f-busca" type="text" placeholder="Buscar pedido / produto / cliente (Enter)" value="${esc(filtro.busca)}">
       <div class="spacer"></div>
       <span class="hint">${linhas.length} linha(s) · Total ${fmtBRL0(totalValor)}</span>
@@ -69,6 +74,7 @@ function wire(container) {
   container.addEventListener('change', (ev) => {
     const t = ev.target;
     if (t.id === 'f-status') { setVendasFiltro({ status: t.value }); return; }
+    if (t.id === 'f-canal') { setVendasFiltro({ canal: t.value }); return; }
     if (t.id === 'f-busca') { setVendasFiltro({ busca: t.value }); return; }
     if (t.dataset.id && t.dataset.campo) {
       setVendaCampo(t.dataset.id, t.dataset.campo, t.dataset.campo === 'valor' ? num(t.value) : t.value);

@@ -11,12 +11,8 @@ export function demoData(ano = 2026) {
   const empresa = {
     nome: 'Facial Academy Internacional',
     cnpj: '12.345.678/0001-90',
-    anoVigente: ano,
+    anos: [ano],
     dataInicio: iso(ano, 1, 1),
-    anoAnterior: {
-      faturamento: 1850000, despesaTotal: 1180000, lucro: 670000,
-      recebimentos: 1790000, pagamentos: 1120000, caixaGerado: 670000,
-    },
   };
 
   const contas = [
@@ -28,11 +24,11 @@ export function demoData(ano = 2026) {
   // ---- Canais de venda + meta mensal -------------------------------------
   const metaPad = (base) => Array.from({ length: 12 }, (_, i) => Math.round(base * (1 + (i % 3) * 0.05)));
   const canais = [
-    { id: 'ch_mkt',  nome: 'Marketplace',     metaMensal: metaPad(60000) },
-    { id: 'ch_bal',  nome: 'Balcão',          metaMensal: metaPad(40000) },
-    { id: 'ch_com',  nome: 'Time Comercial',  metaMensal: metaPad(50000) },
-    { id: 'ch_tel',  nome: 'Telemarketing',   metaMensal: metaPad(20000) },
-    { id: 'ch_eve',  nome: 'Eventos',         metaMensal: metaPad(10000) },
+    { id: 'ch_mkt',  nome: 'Marketplace',     metas: { [ano]: metaPad(60000) } },
+    { id: 'ch_bal',  nome: 'Balcão',          metas: { [ano]: metaPad(40000) } },
+    { id: 'ch_com',  nome: 'Time Comercial',  metas: { [ano]: metaPad(50000) } },
+    { id: 'ch_tel',  nome: 'Telemarketing',   metas: { [ano]: metaPad(20000) } },
+    { id: 'ch_eve',  nome: 'Eventos',         metas: { [ano]: metaPad(10000) } },
   ];
 
   // ---- Lançamento de Vendas ----------------------------------------------
@@ -144,9 +140,9 @@ export function demoData(ano = 2026) {
   });
 
   // ---- Orçamento (valores positivos por categoria x mês) -----------------
-  const orcamento = {};
+  const orcamento = { [ano]: {} };
   planoDespesas.forEach(([catId, base]) => {
-    orcamento[catId] = Array.from({ length: 12 }, () => base);
+    orcamento[ano][catId] = Array.from({ length: 12 }, () => base);
   });
 
   // ---- Plataformas (anexo do Fluxo de Caixa) -----------------------------

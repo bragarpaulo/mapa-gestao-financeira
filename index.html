@@ -2,35 +2,49 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Mapa da Gestão Financeira</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0" />
+  <meta name="theme-color" content="#0F172A" />
+  <title>GPR — Gestão Para Resultado</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='%231D4ED8'/><stop offset='1' stop-color='%2316A34A'/></linearGradient></defs><rect width='32' height='32' rx='8' fill='url(%23g)'/><path d='M8 22V14M14 22V10M20 22V16' stroke='white' stroke-width='2.4' stroke-linecap='round' fill='none'/><path d='M7 12l6-5 4 3 5-5' stroke='white' stroke-width='2' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="css/styles.css" />
-  <!-- Chart.js (gráficos do dashboard). App funciona mesmo sem ele (degrada com aviso). -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" defer></script>
 </head>
 <body>
   <div id="layout">
     <aside id="sidebar">
       <div class="brand">
-        <span class="brand-mark">📘</span>
+        <div class="brand-logo">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 20V14M10 20V10M16 20V13"/><path d="M3 10l6-5 4 3 6-6"/><path d="M19 2h3v3"/>
+          </svg>
+        </div>
         <div>
-          <div class="brand-title">Mapa da Gestão</div>
-          <div class="brand-sub">Financeira</div>
+          <div class="brand-title">GPR</div>
+          <div class="brand-sub">Gestão Para Resultado</div>
         </div>
       </div>
       <nav id="nav"></nav>
       <div class="sidebar-foot">
         <button id="btn-restaurar" class="btn btn-ghost" title="Recarrega os dados de demonstração">↺ Restaurar demo</button>
-        <button id="btn-limpar" class="btn btn-ghost danger" title="Apaga tudo e começa do zero">🗑 Limpar tudo</button>
+        <button id="btn-limpar" class="btn btn-ghost danger" title="Apaga os dados da empresa atual">🗑 Limpar tudo</button>
       </div>
     </aside>
+    <div id="sidebar-overlay"></div>
 
     <main id="main">
       <header id="topbar">
-        <div id="empresa-nome">—</div>
+        <div id="topbar-left">
+          <button id="nav-toggle" aria-label="Abrir menu">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+          </button>
+          <div id="empresa-nome">—</div>
+        </div>
         <div id="topbar-right"></div>
       </header>
-      <section id="content"><!-- view atual --></section>
+      <section id="content"></section>
     </main>
   </div>
 
