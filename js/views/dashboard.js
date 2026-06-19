@@ -9,7 +9,7 @@ import * as charts from '../charts.js';
 import { kpisResumoHtml, chartsResumoHtml, montarChartsResumo } from './resumo.js';
 
 // --- Seleção de meses: clique alterna 1 mês; arrastar = intervalo; "Ano todo" limpa ---
-let _anchor = null, _hover = null, _dragged = false;
+let _anchor = null, _hover = null, _dragged = false, _ctrl = false;
 const rangeArr = (a, b) => { const lo = Math.min(a, b), hi = Math.max(a, b), r = []; for (let i = lo; i <= hi; i++) r.push(i); return r; };
 function highlightMeses(set) {
   document.querySelectorAll('.chips [data-mes]').forEach(c => {
@@ -20,9 +20,10 @@ function highlightMeses(set) {
 document.addEventListener('mouseup', () => {
   if (_anchor === null) return;
   const sel = [...(getState().ui.periodoMeses || [])];
-  if (_dragged) setPeriodoMeses(rangeArr(_anchor, _hover));
-  else { const i = sel.indexOf(_anchor); if (i >= 0) sel.splice(i, 1); else sel.push(_anchor); setPeriodoMeses(sel.sort((a, b) => a - b)); }
-  _anchor = null; _hover = null; _dragged = false;
+  if (_dragged) setPeriodoMeses(rangeArr(_anchor, _hover));            // arrastar = intervalo
+  else if (_ctrl) { const i = sel.indexOf(_anchor); if (i >= 0) sel.splice(i, 1); else sel.push(_anchor); setPeriodoMeses(sel.sort((a, b) => a - b)); } // Ctrl+clique = vários
+  else setPeriodoMeses([_anchor]);                                     // clique = só este mês
+  _anchor = null; _hover = null; _dragged = false; _ctrl = false;
 });
 
 function widget(titulo, view, data, segName, drillAttr) {
@@ -56,7 +57,7 @@ export function render(container) {
     ${pageHead('Dashboard', `Visão geral — ${d.periodoLabel}`)}
     ${exportToolbar()}
     <div class="toolbar">${anoSel}${mesesChips(s)}</div>
-    <div class="hint" style="margin:-6px 0 12px">Dica: clique num mês para alternar (pode escolher vários), ou <strong>arraste</strong> para um intervalo.</div>
+    <div class="hint" style="margin:-6px 0 12px">Dica: <strong>clique</strong> = só aquele mês · <strong>Ctrl/⌘+clique</strong> = vários meses · <strong>arraste</strong> = intervalo · <strong>Ano todo</strong> = limpar.</div>
 
     ${kpisResumoHtml(d)}
 
@@ -87,7 +88,7 @@ function wire(container) {
     const chip = e.target.closest('[data-mes]'); if (!chip) return;
     if (chip.dataset.mes === 'all') { setPeriodoMeses([]); return; }
     e.preventDefault();
-    _anchor = Number(chip.dataset.mes); _hover = _anchor; _dragged = false;
+    _anchor = Number(chip.dataset.mes); _hover = _anchor; _dragged = false; _ctrl = e.ctrlKey || e.metaKey;
   });
   container.addEventListener('mouseover', (e) => {
     if (_anchor === null) return;

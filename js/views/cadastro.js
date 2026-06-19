@@ -83,9 +83,10 @@ export function render(container) {
     <div class="card card-pad" style="margin-bottom:16px">
       <div class="flex" style="justify-content:space-between;flex-wrap:wrap;gap:8px">
         <div><strong>Importar lançamentos por planilha</strong>
-          <div class="hint">Baixe o modelo, preencha as abas de Vendas/Despesas e importe. Cria anos, canais, contas e recebedores automaticamente.</div></div>
-        <div class="flex">
-          <button class="btn btn-sm" data-action="baixar-modelo">⬇ Baixar modelo (.xlsx)</button>
+          <div class="hint">Baixe um modelo, preencha as abas de Vendas/Despesas e importe. Cria anos, canais, contas e recebedores automaticamente. Aceita o modelo simplificado ou o completo (layout da planilha original).</div></div>
+        <div class="flex" style="flex-wrap:wrap">
+          <button class="btn btn-sm" data-action="baixar-modelo" data-tipo="simples">⬇ Modelo simplificado</button>
+          <button class="btn btn-sm" data-action="baixar-modelo" data-tipo="completo">⬇ Modelo completo</button>
           <button class="btn btn-primary btn-sm" data-action="importar">📥 Importar planilha</button>
           <input type="file" id="import-file" accept=".xlsx,.xls" style="display:none">
         </div>
@@ -187,7 +188,7 @@ function wire(container, ano) {
     else if (action === 'rm-cat') removerCategoria(id);
     else if (action === 'add-forn') addFornecedor();
     else if (action === 'rm-forn') removerFornecedor(id);
-    else if (action === 'baixar-modelo') baixarModelo();
+    else if (action === 'baixar-modelo') baixarModelo(b.dataset.tipo || 'simples');
     else if (action === 'importar') container.querySelector('#import-file').click();
     else if (action === 'add-ano') {
       const a = prompt('Adicionar qual ano?', String(ano + 1)); if (!a) return;
