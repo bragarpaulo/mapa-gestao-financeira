@@ -1,0 +1,85 @@
+// views/vendas.js — Lançamento de Vendas (tabela editável, add/duplicar/excluir).
+import { getState, addVenda, duplicarVenda, removerVenda, setVendaCampo, setVendasFiltro } from '../store.js';
+import { vendaDerivada } from '../calc.js';
+import { STATUS_VENDA } from '../config.js';
+import { pageHead, options, badgeVenda, moneyInput } from '../ui.js';
+import { esc, num, fmtBRL0 } from '../util.js';
+
+export function render(container) {
+  const s = getState();
+  const filtro = s.ui.vendasFiltro || { status: '', busca: '' };
+  let linhas = s.vendas.map(vendaDerivada);
+  if (filtro.status) linhas = linhas.filter(v => v.status === filtro.status);
+  if (filtro.busca) {
+    const q = filtro.busca.toLowerCase();
+    linhas = linhas.filter(v => `${v.pedido} ${v.produto} ${v.cliente}`.toLowerCase().includes(q));
+  }
+
+  const totalValor = linhas.reduce((a, v) => a + num(v.valor), 0);
+
+  const rows = linhas.map(v => `
+    <tr data-id="${v.id}">
+      <td><input type="date" data-id="${v.id}" data-campo="dataVenda" value="${esc(v.dataVenda)}"></td>
+      <td class="derived">${esc(v.mesVenda)}</td>
+      <td><input class="inp-flush" style="width:80px" data-id="${v.id}" data-campo="pedido" value="${esc(v.pedido)}"></td>
+      <td><select data-id="${v.id}" data-campo="canalId">${options(s.canais, v.canalId, { placeholder: '—' })}</select></td>
+      <td><select data-id="${v.id}" data-campo="categoriaReceitaId">${options(s.receitaCategorias, v.categoriaReceitaId)}</select></td>
+      <td><input class="inp-flush" style="min-width:120px" data-id="${v.id}" data-campo="produto" value="${esc(v.produto)}"></td>
+      <td><input class="inp-flush" style="min-width:120px" data-id="${v.id}" data-campo="cliente" value="${esc(v.cliente)}"></td>
+      <td class="num">${moneyInput(v.valor, `data-id="${v.id}" data-campo="valor"`, 120)}</td>
+      <td class="num derived">${fmtBRL0(v.valorAVista)}</td>
+      <td><input type="date" data-id="${v.id}" data-campo="dataVencimento" value="${esc(v.dataVencimento)}"></td>
+      <td class="derived">${esc(v.mesAnoRecebimento)}</td>
+      <td><input type="date" data-id="${v.id}" data-campo="dataRecebimento" value="${esc(v.dataRecebimento)}"></td>
+      <td>${badgeVenda(v.status)}</td>
+      <td><input class="inp-flush" style="min-width:100px" data-id="${v.id}" data-campo="obs" value="${esc(v.obs)}"></td>
+      <td class="nowrap">
+        <button class="btn btn-sm btn-icon" title="Duplicar" data-action="dup" data-id="${v.id}">⧉</button>
+        <button class="btn btn-sm btn-icon" title="Excluir" data-action="rm" data-id="${v.id}">🗑</button>
+      </td>
+    </tr>`).join('') || `<tr><td colspan="15" class="empty">Nenhuma venda. Clique em “+ Adicionar linha”.</td></tr>`;
+
+  container.innerHTML = `
+    ${pageHead('Lançamento de Vendas', 'Lance 1 linha por recebimento/parcela. Status calculado automaticamente.')}
+    <div class="toolbar">
+      <select id="f-status">
+        <option value="">Todos os status</option>
+        ${Object.values(STATUS_VENDA).map(st => `<option value="${st}" ${filtro.status === st ? 'selected' : ''}>${st}</option>`).join('')}
+      </select>
+      <input id="f-busca" type="text" placeholder="Buscar pedido / produto / cliente (Enter)" value="${esc(filtro.busca)}">
+      <div class="spacer"></div>
+      <span class="hint">${linhas.length} linha(s) · Total ${fmtBRL0(totalValor)}</span>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th>Data da Venda</th><th>Mês</th><th>Nº Pedido</th><th>Canal</th><th>Categoria</th>
+          <th>Produto/Pedido</th><th>Cliente</th><th class="num">Valor</th><th class="num">Valor à Vista</th>
+          <th>Vencimento</th><th>Mês/Ano Receb.</th><th>Data Recebimento</th><th>Status</th><th>Obs</th><th></th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+        <tfoot><tr><td colspan="15"><button class="btn btn-primary btn-sm" data-action="add">+ Adicionar linha</button></td></tr></tfoot>
+      </table>
+    </div>`;
+
+  wire(container);
+}
+
+function wire(container) {
+  container.addEventListener('change', (ev) => {
+    const t = ev.target;
+    if (t.id === 'f-status') { setVendasFiltro({ status: t.value }); return; }
+    if (t.id === 'f-busca') { setVendasFiltro({ busca: t.value }); return; }
+    if (t.dataset.id && t.dataset.campo) {
+      setVendaCampo(t.dataset.id, t.dataset.campo, t.dataset.campo === 'valor' ? num(t.value) : t.value);
+    }
+  });
+  container.addEventListener('click', (ev) => {
+    const b = ev.target.closest('[data-action]');
+    if (!b) return;
+    const { action, id } = b.dataset;
+    if (action === 'add') addVenda({});
+    else if (action === 'dup') duplicarVenda(id);
+    else if (action === 'rm') removerVenda(id);
+  });
+}

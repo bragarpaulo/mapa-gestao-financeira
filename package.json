@@ -1,0 +1,10 @@
+{
+  "name": "mapa-financeiro-mvp",
+  "version": "1.0.0",
+  "description": "MVP web do Mapa da Gestão Financeira (HTML/JS, sem backend).",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "verify": "node test/verify.mjs"
+  }
+}

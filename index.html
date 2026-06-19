@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mapa da Gestão Financeira</title>
+  <link rel="stylesheet" href="css/styles.css" />
+  <!-- Chart.js (gráficos do dashboard). App funciona mesmo sem ele (degrada com aviso). -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" defer></script>
+</head>
+<body>
+  <div id="layout">
+    <aside id="sidebar">
+      <div class="brand">
+        <span class="brand-mark">📘</span>
+        <div>
+          <div class="brand-title">Mapa da Gestão</div>
+          <div class="brand-sub">Financeira</div>
+        </div>
+      </div>
+      <nav id="nav"></nav>
+      <div class="sidebar-foot">
+        <button id="btn-restaurar" class="btn btn-ghost" title="Recarrega os dados de demonstração">↺ Restaurar demo</button>
+        <button id="btn-limpar" class="btn btn-ghost danger" title="Apaga tudo e começa do zero">🗑 Limpar tudo</button>
+      </div>
+    </aside>
+
+    <main id="main">
+      <header id="topbar">
+        <div id="empresa-nome">—</div>
+        <div id="topbar-right"></div>
+      </header>
+      <section id="content"><!-- view atual --></section>
+    </main>
+  </div>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
