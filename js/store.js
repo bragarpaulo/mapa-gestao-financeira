@@ -4,6 +4,7 @@
 import { DEFAULT_CATEGORIES, DEFAULT_RECEITA_CATEGORIES, GRUPOS } from './config.js';
 import { demoData } from './seed.js';
 import { uid } from './util.js';
+import { cloudEnabled, cloudLoad, cloudSave } from './cloud.js';
 
 const LS_KEY = 'mapa_financeiro_mvp_v2';
 
@@ -68,7 +69,35 @@ function load() {
 }
 export function save() {
   try { localStorage.setItem(LS_KEY, JSON.stringify(root)); } catch (e) { /* quota */ }
+  scheduleCloud();
 }
+
+// ---- Sincronização com a nuvem (Supabase), se configurada -----------------
+let _cloudTimer = null;
+function scheduleCloud() {
+  if (!cloudEnabled()) return;
+  clearTimeout(_cloudTimer);
+  _cloudTimer = setTimeout(() => cloudSave(root), 800); // debounce
+}
+
+// Chamado no boot: se a nuvem estiver ligada, carrega o estado de lá (ou sobe o atual).
+export async function initCloud() {
+  if (!cloudEnabled()) return false;
+  try {
+    const remote = await cloudLoad();
+    if (remote && Array.isArray(remote.companies) && remote.companies.length) {
+      root = remote;
+      root.companies.forEach(c => { c.ui = { ...defaultUI(null), ...(c.ui || {}) }; });
+      if (!root.companies.find(c => c.id === root.activeId)) root.activeId = root.companies[0].id;
+      try { localStorage.setItem(LS_KEY, JSON.stringify(root)); } catch (e) {}
+      emit();
+    } else {
+      await cloudSave(root); // primeira vez: sobe o estado atual (demo)
+    }
+    return true;
+  } catch (e) { console.warn('[cloud] init:', e); return false; }
+}
+export { cloudEnabled };
 function emit() { listeners.forEach(fn => fn(getState())); }
 export function subscribe(fn) { listeners.add(fn); return () => listeners.delete(fn); }
 

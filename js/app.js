@@ -2,6 +2,7 @@
 import {
   getState, subscribe, resetDemo, clearAll,
   getCompanies, getActiveId, setActiveEmpresa, addEmpresa, removerEmpresa,
+  initCloud, cloudEnabled,
 } from './store.js';
 import { ABAS } from './config.js';
 import { esc } from './util.js';
@@ -33,6 +34,7 @@ function renderTopbar() {
     `<option value="${c.id}" ${c.id === active ? 'selected' : ''}>${esc(c.nome || '(sem nome)')}${c.cnpj ? ' — ' + esc(c.cnpj) : ''}</option>`
   ).join('');
   topRightEl.innerHTML = `
+    ${cloudEnabled() ? '<span class="badge ok" title="Dados sincronizados na nuvem (Supabase)">☁ Nuvem</span>' : '<span class="badge none" title="Salvando só neste navegador">💾 Local</span>'}
     <label class="hint">Empresa:</label>
     <select id="empresa-sel">${opts}</select>
     <button class="btn btn-sm" data-action="add-empresa" title="Adicionar empresa (CNPJ)">+ Empresa</button>
@@ -87,6 +89,9 @@ buildNav();
 renderView();
 window.addEventListener('hashchange', renderView);
 subscribe(renderView);   // re-renderiza a view atual quando o estado muda
+
+// Se a nuvem estiver configurada, carrega o estado de lá no boot.
+initCloud().then(ok => { if (ok) renderTopbar(); });
 
 // Hook de depuração (usado em verificação): navegar + ler estado de forma síncrona.
 window.__MGF = { renderView, getState };
