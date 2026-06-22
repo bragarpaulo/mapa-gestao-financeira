@@ -156,6 +156,7 @@ function aplicarRemoto(remote) {
   remote.companies.forEach(migrarCompany);
   if (!remote.companies.find(c => c.id === remote.activeId)) remote.activeId = remote.companies[0].id;
   root = remote;
+  aplicarVigente(active());   // ao receber estado da nuvem, sempre volta ao ano/mês vigentes
   try { localStorage.setItem(LS_KEY, JSON.stringify(root)); } catch (e) {}
   emit();
 }

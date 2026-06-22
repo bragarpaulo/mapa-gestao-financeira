@@ -138,6 +138,14 @@ tbody tr:hover { background: #f9fafb; }
 td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 .row-total td, tr.total td { font-weight: 700; background: var(--surface-2); }
 .grp-row td { font-weight: 700; background: #eef2f7; }
+/* Entradas (DRE/DFC): destaque verde */
+.row-entrada td { font-weight: 800; background: var(--green-bg); color: var(--green-d); }
+.row-entrada td:first-child { box-shadow: inset 3px 0 0 var(--green); }
+[data-theme="dark"] .row-entrada td { background: #14361f; color: #6ee7b7; }
+/* Grupos recolhíveis no DRE/DFC (começam expandidos) */
+.grp-row[data-grp] { cursor: pointer; user-select: none; }
+.grp-caret { display: inline-block; font-size: 10px; transition: transform .15s; margin-right: 2px; }
+.grp-row.collapsed .grp-caret { transform: rotate(-90deg); }
 .cat-row td:first-child { padding-left: 20px; color: var(--muted); }
 .row-click { cursor: pointer; }
 
@@ -160,8 +168,8 @@ tr.st-ok > td { background: #f4fbf6; }
 /* ---- Gauge (Controle de Metas) ---- */
 .gauge { --pct: 0; --c: var(--primary); width: 132px; height: 132px; border-radius: 50%; display: grid; place-items: center; margin: 0 auto;
   background: conic-gradient(var(--c) calc(var(--pct) * 1%), var(--line) 0); position: relative; }
-.gauge::before { content: ""; position: absolute; inset: 12px; background: var(--surface); border-radius: 50%; }
-.gauge-val { position: relative; font-size: 24px; font-weight: 800; }
+.gauge::before { content: ""; position: absolute; inset: 12px; background: var(--navy); border-radius: 50%; }
+.gauge-val { position: relative; font-size: 24px; font-weight: 800; color: #fff; }
 .gauge-cap { text-align: center; margin-top: 10px; font-weight: 700; }
 .gauge-sub { text-align: center; color: var(--muted); font-size: 12px; margin-top: 2px; }
 

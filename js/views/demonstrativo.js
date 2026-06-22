@@ -19,9 +19,9 @@ function linha(label, arr, { cls = '', sign = true } = {}) {
   return `<tr class="${rc}"><td>${esc(label)}</td>${valueCells(arr, { sign })}</tr>`;
 }
 
-// Linha de categoria com NOME EDITÁVEL (renomeia direto na DRE/DFC).
-function catLinha(cat, arr) {
-  return `<tr class="cat-row"><td><input class="inp-flush" data-cat-id="${cat.id}" value="${esc(cat.nome)}"></td>${valueCells(arr, { sign: true })}</tr>`;
+// Linha de categoria com NOME EDITÁVEL (renomeia direto na DRE/DFC). gid = grupo (p/ recolher).
+function catLinha(cat, arr, gid = '') {
+  return `<tr class="cat-row" data-grpcat="${gid}"><td><input class="inp-flush" data-cat-id="${cat.id}" value="${esc(cat.nome)}"></td>${valueCells(arr, { sign: true })}</tr>`;
 }
 
 export function renderDemonstrativo(container, { titulo, sub, result }) {
@@ -50,12 +50,14 @@ export function renderDemonstrativo(container, { titulo, sub, result }) {
 
   let body = '';
   for (const item of seq) {
-    if (item.type === 'entrada') body += linha(item.label, item.arr, { cls: 'row-total', sign: false });
+    if (item.type === 'entrada') body += linha(item.label, item.arr, { cls: 'row-entrada', sign: false });
     else if (item.type === 'subtotal') body += linha(item.label, item.arr, { cls: 'row-total' });
     else if (item.type === 'grupo') {
-      body += linha(GTITULO[item.gid], r.grupos[item.gid].total, { cls: 'grp-row' });
+      const tot = r.grupos[item.gid].total;
+      const tneg = tot.reduce((a, b) => a + (typeof b === 'number' ? b : 0), 0) < 0;
+      body += `<tr class="grp-row ${tneg ? 'row-neg' : ''}" data-grp="${item.gid}"><td><span class="grp-caret">▾</span> ${esc(GTITULO[item.gid])}</td>${valueCells(tot, { sign: true })}</tr>`;
       for (const cat of s.categorias.filter(c => c.grupo === item.gid)) {
-        body += catLinha(cat, r.catVal[cat.id]);
+        body += catLinha(cat, r.catVal[cat.id], item.gid);
       }
     }
   }
@@ -77,6 +79,13 @@ export function renderDemonstrativo(container, { titulo, sub, result }) {
   container.addEventListener('change', (ev) => {
     const t = ev.target;
     if (t.dataset.catId) renomearCategoria(t.dataset.catId, t.value);
+  });
+  // Recolher/expandir um grupo (começa sempre expandido).
+  container.addEventListener('click', (ev) => {
+    const g = ev.target.closest('.grp-row[data-grp]'); if (!g || ev.target.closest('input')) return;
+    const gid = g.dataset.grp, fechar = !g.classList.contains('collapsed');
+    g.classList.toggle('collapsed', fechar);
+    container.querySelectorAll(`tr[data-grpcat="${CSS.escape(gid)}"]`).forEach(r => { r.style.display = fechar ? 'none' : ''; });
   });
   wireExport(container, titulo.split(' —')[0].trim(), { modo: 'tabela' });
 }

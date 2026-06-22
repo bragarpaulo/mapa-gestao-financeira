@@ -55,6 +55,12 @@
     </main>
   </div>
 
+  <script>
+    // Registra o Service Worker (network-first) para sempre carregar a versão mais nova após deploy.
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).catch(() => {}));
+    }
+  </script>
   <script type="module" src="js/app.js"></script>
 </body>
 </html>

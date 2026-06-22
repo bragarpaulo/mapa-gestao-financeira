@@ -146,6 +146,13 @@ document.addEventListener('click', (e) => {
   if (eye) { e.preventDefault(); store.toggleChartLabel(eye.dataset.eye); }
 });
 
+// Drilldown global: qualquer KPI/elemento com data-goto navega (vale no Início, Fluxo, etc.).
+document.addEventListener('click', (e) => {
+  const g = e.target.closest('[data-goto]'); if (!g) return;
+  // não intercepta se estiver dentro de um link/seleção já tratada
+  location.hash = '#' + g.dataset.goto;
+});
+
 // Baixar um gráfico específico como PNG (fundo branco p/ compartilhar).
 document.addEventListener('click', (e) => {
   const b = e.target.closest('[data-chartdl]'); if (!b) return;
