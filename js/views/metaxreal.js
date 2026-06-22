@@ -65,5 +65,5 @@ export function render(container) {
     </div>`;
 
   charts.metaRealChart('ch-mxr', MESES, metaMes, realMes, chartLabelOn('ch-mxr'));
-  wireExport(container, 'Meta-x-Real');
+  wireExport(container, 'Meta-x-Real', { modo: 'tabela' });
 }

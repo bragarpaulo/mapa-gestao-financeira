@@ -150,7 +150,11 @@ export function calcMetaxReal(s) {
     const meta = metaArr(ch, ano);
     const real = cols.map(k => vd.reduce((a, v) => a + (v.canalId === ch.id && v.mesVenda === k ? num(v.valor) : 0), 0));
     const metaYTD = sumYTD(meta), realYTD = sumYTD(real);
-    return { canal: ch.nome, meta, real, metaTotal: meta.reduce((a, b) => a + b, 0), realTotal: real.reduce((a, b) => a + b, 0), metaYTD, realYTD, pctYTD: metaYTD ? realYTD / metaYTD : '' };
+    const pctYTD = metaYTD ? realYTD / metaYTD : '';
+    const metaTotal = meta.reduce((a, b) => a + b, 0);
+    const projecaoAno = elapsed ? realYTD / elapsed * 12 : 0;       // ritmo atual projetado p/ o ano
+    const statusMeta = pctYTD === '' ? 'sem' : pctYTD >= 1 ? 'acima' : pctYTD >= 0.8 ? 'atencao' : 'abaixo';
+    return { canal: ch.nome, meta, real, metaTotal, realTotal: real.reduce((a, b) => a + b, 0), metaYTD, realYTD, pctYTD, projecaoAno, projecaoPct: metaTotal ? projecaoAno / metaTotal : '', statusMeta };
   });
   const totalMetaYTD = canais.reduce((a, c) => a + c.metaYTD, 0);
   const totalRealYTD = canais.reduce((a, c) => a + c.realYTD, 0);
@@ -297,4 +301,22 @@ export function calcDashboard(s) {
     totalAnualGeracao: fluxo.resultado.reduce((a, b) => a + b, 0),
     totalAnualLucro: dre.lucroLiquido.reduce((a, b) => a + b, 0),
   };
+}
+
+// Séries mensais por ano (p/ gráficos multi-ano: jan/25…dez/25, jan/26…). Reusa calcDRE/calcFluxo
+// com um estado-sombra fixando cada ano, sem mexer no estado real.
+export function calcSeriesMultiAno(s, anos) {
+  return (anos || []).map(ano => {
+    const sa = { ...s, ui: { ...s.ui, anosSel: [ano], anoAtivo: ano } };
+    const dre = calcDRE(sa), fluxo = calcFluxo(sa);
+    return {
+      ano,
+      receita: dre.entradas,
+      despesa: dre.totalDespesas.map(v => Math.abs(v)),
+      lucro: dre.lucroLiquido,
+      recebimentos: fluxo.entradas,
+      pagamentos: fluxo.saidas,
+      geracao: fluxo.resultado,
+    };
+  });
 }

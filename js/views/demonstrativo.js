@@ -14,7 +14,9 @@ function valueCells(arr, { sign = true } = {}) {
 }
 
 function linha(label, arr, { cls = '', sign = true } = {}) {
-  return `<tr class="${cls}"><td>${esc(label)}</td>${valueCells(arr, { sign })}</tr>`;
+  const t = arr.reduce((a, b) => a + (typeof b === 'number' ? b : 0), 0);
+  const rc = `${cls} ${sign && t < 0 ? 'row-neg' : ''}`.trim();
+  return `<tr class="${rc}"><td>${esc(label)}</td>${valueCells(arr, { sign })}</tr>`;
 }
 
 // Linha de categoria com NOME EDITÁVEL (renomeia direto na DRE/DFC).
@@ -76,5 +78,5 @@ export function renderDemonstrativo(container, { titulo, sub, result }) {
     const t = ev.target;
     if (t.dataset.catId) renomearCategoria(t.dataset.catId, t.value);
   });
-  wireExport(container, titulo.split(' —')[0].trim(), { fitOnePage: true });
+  wireExport(container, titulo.split(' —')[0].trim(), { modo: 'tabela' });
 }

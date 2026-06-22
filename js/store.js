@@ -2,7 +2,7 @@
 // root = { companies: [empresa...], activeId }. getState() devolve a EMPRESA ATIVA (por referência).
 import { DEFAULT_CATEGORIES, DEFAULT_RECEITA_CATEGORIES, GRUPOS } from './config.js';
 import { demoData } from './seed.js';
-import { uid } from './util.js';
+import { uid, anosDisponiveis as anosDisponiveisUtil, addMeses, parseISO, mesAno } from './util.js';
 import { cloudEnabled, cloudLoad, cloudSave, cloudSubscribe } from './cloud.js';
 
 const LS_KEY = 'mapa_financeiro_mvp_v2';
@@ -10,13 +10,15 @@ const LS_KEY = 'mapa_financeiro_mvp_v2';
 function freshCategorias() { return DEFAULT_CATEGORIES.map(c => ({ ...c })); }
 function freshReceitaCats() { return DEFAULT_RECEITA_CATEGORIES.map(c => ({ ...c })); }
 const anoCorrente = () => new Date().getFullYear();
+const mesCorrente = () => new Date().getMonth();   // 0..11
 
 function defaultUI(ano) {
   return {
-    anoAtivo: ano,
-    periodoMeses: [],                 // [] => ano todo; senão índices 0..11
-    vendasFiltro: { status: '', busca: '', canal: '' },
-    despesasFiltro: { status: '', busca: '', categoria: '' },
+    anoAtivo: ano,                    // ano primário (relatórios de 1 ano) = maior de anosSel
+    anosSel: [ano],                   // anos selecionados nos chips (multi-seleção)
+    periodoMeses: ano === anoCorrente() ? [mesCorrente()] : [],   // default = mês vigente
+    vendasFiltro: { status: [], busca: '' },
+    despesasFiltro: { status: [], busca: '' },
     fluxoMesReceber: null,
     dashCatView: 'pizza',             // Despesas por categoria: pizza|barras|tabela
     dashCanalView: 'barras',          // Faturamento por canal: pizza|barras|tabela
@@ -24,6 +26,7 @@ function defaultUI(ano) {
     vendasSort: { campo: '', dir: 'asc' },
     despesasSort: { campo: '', dir: 'asc' },
     chartHide: {},                    // { [idDoGrafico]: true } => rótulos/% ocultos
+    tema: 'light',                    // 'light' | 'dark'
   };
 }
 
@@ -75,10 +78,16 @@ function migrarCompany(c) {
 
   // ui
   c.ui = { ...defaultUI(anoBase), ...(c.ui || {}) };
-  c.ui.vendasFiltro = { status: '', busca: '', canal: '', ...(c.ui.vendasFiltro || {}) };
-  c.ui.despesasFiltro = { status: '', busca: '', categoria: '', ...(c.ui.despesasFiltro || {}) };
+  // filtros: status agora é array de chips (migra string antiga -> array). canal/categoria seguem p/ drilldown.
+  const migFiltro = (f) => { const o = { status: [], busca: '', canal: '', categoria: '', ...(f || {}) }; if (typeof o.status === 'string') o.status = o.status ? [o.status] : []; return o; };
+  c.ui.vendasFiltro = migFiltro(c.ui.vendasFiltro);
+  c.ui.despesasFiltro = migFiltro(c.ui.despesasFiltro);
   if (!Array.isArray(c.ui.periodoMeses)) c.ui.periodoMeses = [];
   if (!e.anos.includes(Number(c.ui.anoAtivo))) c.ui.anoAtivo = anoBase;
+  // anosSel: deriva do anoAtivo se ausente; mantém só anos válidos
+  if (!Array.isArray(c.ui.anosSel) || !c.ui.anosSel.length) c.ui.anosSel = [Number(c.ui.anoAtivo) || anoBase];
+  c.ui.anosSel = [...new Set(c.ui.anosSel.map(Number))].filter(Boolean).sort((a, b) => a - b);
+  if (c.ui.tema !== 'dark') c.ui.tema = 'light';
   if (!c.id) c.id = uid('emp');
   return c;
 }
@@ -116,10 +125,16 @@ function load() {
     return r;
   } catch (e) { return null; }
 }
-export function save() {
+// Persistência: o localStorage é DEBOUNCED (250ms) para não serializar o root inteiro a cada
+// tecla (causava lag ao editar lançamentos). flushLocal() grava imediatamente quando precisa.
+let _localTimer = null;
+function scheduleLocal() { clearTimeout(_localTimer); _localTimer = setTimeout(flushLocal, 250); }
+export function flushLocal() {
+  clearTimeout(_localTimer); _localTimer = null;
   try { localStorage.setItem(LS_KEY, JSON.stringify(root)); } catch (e) {}
-  scheduleCloud();
 }
+export function save() { scheduleLocal(); scheduleCloud(); }
+if (typeof window !== 'undefined') window.addEventListener('beforeunload', flushLocal);
 function emit() { listeners.forEach(fn => fn(getState())); }
 export function subscribe(fn) { listeners.add(fn); return () => listeners.delete(fn); }
 
@@ -177,18 +192,26 @@ export function clearAll() {
 
 // ---- Anos (multi-ano) ----------------------------------------------------
 export function getAnos() { return [...active().empresa.anos].sort((a, b) => a - b); }
-export function getAnoAtivo() { return active().ui.anoAtivo; }
-export function setAnoAtivo(ano) { update(s => { s.ui.anoAtivo = Number(ano); s.ui.periodoMeses = []; }); }
+// Anos disponíveis = cadastrados ∪ com dados ∪ ano corrente (gerados automaticamente).
+export function getAnosDisponiveis() { return anosDisponiveisUtil(active()); }
+export function getAnoAtivo() { const ui = active().ui; return (Array.isArray(ui.anosSel) && ui.anosSel.length) ? Math.max(...ui.anosSel.map(Number)) : Number(ui.anoAtivo); }
+export function getAnosSel() { const ui = active().ui; return (Array.isArray(ui.anosSel) && ui.anosSel.length) ? [...ui.anosSel].map(Number).sort((a, b) => a - b) : [getAnoAtivo()]; }
+function _normAnos(arr, fallback) { const a = [...new Set(Array.from(arr).map(Number))].filter(Boolean).sort((x, y) => x - y); return a.length ? a : [fallback]; }
+export function setAnosSel(arr) { update(s => { s.ui.anosSel = _normAnos(arr, anoCorrente()); s.ui.anoAtivo = Math.max(...s.ui.anosSel); }); }
+export function toggleAno(ano) { ano = Number(ano); update(s => { const set = new Set((s.ui.anosSel || []).map(Number)); set.has(ano) ? set.delete(ano) : set.add(ano); s.ui.anosSel = _normAnos([...set], ano); s.ui.anoAtivo = Math.max(...s.ui.anosSel); }); }
+export function setAnoAtivo(ano) { update(s => { s.ui.anoAtivo = Number(ano); s.ui.anosSel = [Number(ano)]; }); }
+export function getTema() { return active().ui.tema || 'light'; }
+export function setTema(t) { update(s => { s.ui.tema = t === 'dark' ? 'dark' : 'light'; }); }
 export function addAno(ano, copiarDe = null) {
   update(s => {
     ano = Number(ano);
-    if (!ano || s.empresa.anos.includes(ano)) { s.ui.anoAtivo = ano; return; }
+    if (!ano || s.empresa.anos.includes(ano)) { s.ui.anoAtivo = ano; s.ui.anosSel = [ano]; return; }
     s.empresa.anos = [...s.empresa.anos, ano].sort((a, b) => a - b);
     if (copiarDe) {
       s.canais.forEach(ch => { if (ch.metas[copiarDe]) ch.metas[ano] = ch.metas[copiarDe].slice(); });
       if (s.orcamento[copiarDe]) { s.orcamento[ano] = {}; for (const k in s.orcamento[copiarDe]) s.orcamento[ano][k] = s.orcamento[copiarDe][k].slice(); }
     }
-    s.ui.anoAtivo = ano; s.ui.periodoMeses = [];
+    s.ui.anoAtivo = ano; s.ui.anosSel = [ano];
   });
 }
 export function removerAno(ano) {
@@ -242,6 +265,36 @@ export function duplicarDespesa(id) { update(s => { const i = s.despesas.findInd
 export function removerDespesa(id) { update(s => { s.despesas = s.despesas.filter(d => d.id !== id); }); }
 export function setDespesaCampo(id, campo, valor, opts) { update(s => { const d = s.despesas.find(x => x.id === id); if (d) d[campo] = valor; }, opts); }
 
+// ---- Recorrência inline (marca a linha como 1ª parcela e gera as demais até dataFim) -------
+const PASSO_REC = { mensal: 1, bimestral: 2, trimestral: 3, semestral: 6, anual: 12 };
+export function aplicarRecorrenciaDespesa(id, periodo, dataFim) {
+  const passo = PASSO_REC[periodo]; if (!passo) return;
+  update(s => {
+    const d = s.despesas.find(x => x.id === id); if (!d || !d.dataVencimento || !dataFim) return;
+    const recId = uid('rec'); const fim = parseISO(dataFim); if (!fim) return;
+    d.recorrenciaId = recId; d.recorrenciaPeriodo = periodo; d.recorrenciaFim = dataFim;
+    let iso = addMeses(d.dataVencimento, passo), guard = 0;
+    while (iso && parseISO(iso) <= fim && guard++ < 600) {
+      s.despesas.push(novaDespesa({ ...d, id: undefined, dataVencimento: iso, mesCompetencia: mesAno(iso), dataPagamentoReal: '', recorrenciaId: recId, recorrenciaPeriodo: periodo, recorrenciaFim: dataFim }));
+      iso = addMeses(iso, passo);
+    }
+  });
+}
+export function aplicarRecorrenciaVenda(id, periodo, dataFim) {
+  const passo = PASSO_REC[periodo]; if (!passo) return;
+  update(s => {
+    const v = s.vendas.find(x => x.id === id); if (!v) return;
+    const baseData = v.dataVencimento || v.dataVenda; if (!baseData || !dataFim) return;
+    const recId = uid('rec'); const fim = parseISO(dataFim); if (!fim) return;
+    v.recorrenciaId = recId; v.recorrenciaPeriodo = periodo; v.recorrenciaFim = dataFim;
+    let iso = addMeses(baseData, passo), guard = 0;
+    while (iso && parseISO(iso) <= fim && guard++ < 600) {
+      s.vendas.push(novaVenda({ ...v, id: undefined, dataVenda: iso, dataVencimento: iso, dataRecebimento: '', recorrenciaId: recId, recorrenciaPeriodo: periodo, recorrenciaFim: dataFim }));
+      iso = addMeses(iso, passo);
+    }
+  });
+}
+
 // ---- CRUD: Canais (+ metas por ano, reorder, multi-delete) ---------------
 export function addCanal() { update(s => s.canais.push({ id: uid('ch'), nome: 'Novo Canal', metas: {} })); }
 export function renomearCanal(id, nome) { update(s => { const c = s.canais.find(x => x.id === id); if (c) c.nome = nome; }); }
@@ -260,7 +313,7 @@ export function reordenarFornecedores(fromId, toId) { update(s => moveById(s.for
 // Auto-cadastra um recebedor pelo nome se ele não existir (case-insensitive, sem acento).
 export function ensureFornecedor(nome) {
   const n = String(nome || '').trim(); if (!n) return;
-  update(s => { if (!s.fornecedores.some(f => normNome(f.nome) === normNome(n))) s.fornecedores.push({ id: uid('forn'), nome: n }); });
+  update(s => { if (!s.fornecedores.some(f => normNome(f.nome) === normNome(n))) s.fornecedores.push({ id: uid('forn'), nome: n }); }, { silent: true });
 }
 
 // ---- CRUD: Clientes (vendas) ---------------------------------------------
@@ -271,7 +324,7 @@ export function removerClientes(ids) { const set = new Set(ids); update(s => { s
 export function reordenarClientes(fromId, toId) { update(s => moveById(s.clientes, fromId, toId)); }
 export function ensureCliente(nome) {
   const n = String(nome || '').trim(); if (!n) return;
-  update(s => { if (!s.clientes.some(c => normNome(c.nome) === normNome(n))) s.clientes.push({ id: uid('cli'), nome: n }); });
+  update(s => { if (!s.clientes.some(c => normNome(c.nome) === normNome(n))) s.clientes.push({ id: uid('cli'), nome: n }); }, { silent: true });
 }
 
 // ---- CRUD: Categorias ----------------------------------------------------

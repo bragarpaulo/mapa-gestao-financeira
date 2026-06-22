@@ -3,9 +3,10 @@
 import { demoData } from '../js/seed.js';
 import { DEFAULT_CATEGORIES, DEFAULT_RECEITA_CATEGORIES } from '../js/config.js';
 import {
-  calcDRE, calcDFC, calcFluxo, calcDashboard, calcMetaxReal, calcPlanxReal, vendasDerivadas, despesasDerivadas,
+  calcDRE, calcDFC, calcFluxo, calcDashboard, calcMetaxReal, calcPlanxReal, vendasDerivadas, despesasDerivadas, calcSeriesMultiAno,
 } from '../js/calc.js';
 import { expandirRecorrencia } from '../js/recurrence.js';
+import { anosDisponiveis, noPeriodo, anosSelecionados } from '../js/util.js';
 
 const ano = 2026;
 const s = {
@@ -140,6 +141,25 @@ check('Venda recorrente: 3 parcelas (mar/abr/mai)', vendaRec.length === 3);
 
 const inv = expandirRecorrencia(base, 'mensal', '2026-12-01', '2026-06-01', 'despesa');
 check('Recorrência com fim < início → vazio', inv.length === 0);
+
+console.log('\n== FASE 8: PERÍODO GLOBAL ==');
+check('anosDisponiveis inclui o ano dos dados', anosDisponiveis(s).includes(ano), `(${anosDisponiveis(s).join(',')})`);
+check('anosSelecionados cai no ano ativo qdo sem anosSel', anosSelecionados(s).includes(ano));
+check('noPeriodo: data dentro do mês/ano selecionado', noPeriodo('2026-06-15', [2026], [5]) === true);
+check('noPeriodo: data fora do mês selecionado', noPeriodo('2026-06-15', [2026], [0]) === false);
+check('noPeriodo: ano vazio = todos os anos', noPeriodo('2026-06-15', [], [5]) === true);
+
+console.log('\n== FASE 8: INTELIGÊNCIA DE METAS ==');
+const mxr2 = calcMetaxReal(s);
+check('Meta×Real: cada canal tem statusMeta', mxr2.canais.every(c => ['acima', 'atencao', 'abaixo', 'sem'].includes(c.statusMeta)));
+check('Meta×Real: projecaoAno é número >= 0', mxr2.canais.every(c => typeof c.projecaoAno === 'number' && c.projecaoAno >= 0));
+
+console.log('\n== FASE 8: SÉRIES MULTI-ANO ==');
+const ser = calcSeriesMultiAno(s, [ano]);
+check('calcSeriesMultiAno: 1 ano → 1 série com 12 meses', ser.length === 1 && ser[0].receita.length === 12);
+check('calcSeriesMultiAno: receita do ano = entradas DRE', approx(sum(ser[0].receita), sum(dre.entradas)));
+const ser2 = calcSeriesMultiAno(s, [ano - 1, ano]);
+check('calcSeriesMultiAno: 2 anos → 2 séries (24 meses combinados)', ser2.length === 2 && ser2.flatMap(x => x.receita).length === 24);
 
 console.log(`\n== RESULTADO: ${pass} passou, ${fail} falhou ==`);
 process.exit(fail ? 1 : 0);

@@ -1,6 +1,6 @@
 // ui.js — helpers de UI compartilhados pelas views (HTML em string + componentes).
-import { MESES, STATUS_VENDA, STATUS_DESPESA } from './config.js';
-import { esc, fmtBRL, fmtBRL0, fmtPct, num } from './util.js';
+import { MESES, STATUS_VENDA, STATUS_DESPESA, PERIODOS_RECORRENCIA } from './config.js';
+import { esc, fmtBRL, fmtBRL0, fmtPct, num, norm } from './util.js';
 
 const _moneyFmt = new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 function fmtMoneyInput(v) { return 'R$ ' + _moneyFmt.format(num(v)); }
@@ -87,6 +87,90 @@ export function statusLegend(itens) {
   return `<div class="status-legend no-print">` + itens.map(i => `<span class="status-pill ${i.cls}">${esc(i.label)}</span>`).join('') + `</div>`;
 }
 
+// Legenda que TAMBÉM filtra: cada pílula é um botão toggle (data-statusfilter). `ativos` = labels ligados.
+export function statusFilterChips(itens, ativos = []) {
+  const algum = ativos.length > 0;
+  return `<div class="status-legend no-print" role="group" aria-label="Filtrar por status">` + itens.map(i => {
+    const on = ativos.includes(i.label);
+    return `<button type="button" class="status-pill ${i.cls} ${algum && !on ? 'dim' : ''} ${on ? 'sel' : ''}" data-statusfilter="${esc(i.label)}" aria-pressed="${on}">${esc(i.label)}</button>`;
+  }).join('') + `</div>`;
+}
+
+// ---- Autocomplete custom (busca "contém" + cadastrar dentro do campo) --------------------
+let _acPop = null;
+function _acEl() {
+  if (_acPop) return _acPop;
+  _acPop = document.createElement('div');
+  _acPop.className = 'ac-pop'; _acPop.style.display = 'none';
+  document.body.appendChild(_acPop);
+  return _acPop;
+}
+function _acHide() { if (_acPop) _acPop.style.display = 'none'; }
+// container: raiz da view; selector: ex. 'input[data-ac="cliente"]'; getSource: ()=>[{nome}]; onPick(input, valor, isNew).
+export function attachAutocomplete(container, { selector, getSource, onPick }) {
+  const pop = _acEl();
+  let cur = null;            // input ativo
+  const posicionar = () => {
+    if (!cur) return;
+    const r = cur.getBoundingClientRect();
+    pop.style.left = (r.left + window.scrollX) + 'px';
+    pop.style.top = (r.bottom + window.scrollY + 2) + 'px';
+    pop.style.minWidth = r.width + 'px';
+  };
+  const render = () => {
+    if (!cur) return;
+    const termo = norm(cur.value);
+    const fonte = getSource() || [];
+    const matches = fonte.filter(o => norm(o.nome).includes(termo)).slice(0, 8);
+    const exato = fonte.some(o => norm(o.nome) === termo);
+    let html = matches.map(o => `<button type="button" class="ac-item" data-ac-val="${esc(o.nome)}">${esc(o.nome)}</button>`).join('');
+    if (cur.value.trim() && !exato) html += `<button type="button" class="ac-item ac-new" data-ac-new="${esc(cur.value.trim())}">➕ Cadastrar “${esc(cur.value.trim())}”</button>`;
+    if (!html) html = `<div class="ac-empty">Digite para buscar ou cadastrar…</div>`;
+    pop.innerHTML = html; pop.style.display = 'block'; posicionar();
+  };
+  container.addEventListener('focusin', (e) => { if (e.target.matches(selector)) { cur = e.target; render(); } });
+  container.addEventListener('input', (e) => { if (e.target === cur) render(); });
+  container.addEventListener('focusout', (e) => { if (e.target === cur) setTimeout(() => { if (document.activeElement !== cur) _acHide(); }, 120); });
+  // mousedown (antes do blur) p/ escolher uma opção
+  pop.addEventListener('mousedown', (e) => {
+    const it = e.target.closest('[data-ac-val],[data-ac-new]'); if (!it || !cur) return;
+    e.preventDefault();
+    const isNew = it.hasAttribute('data-ac-new');
+    const val = isNew ? it.dataset.acNew : it.dataset.acVal;
+    cur.value = val; onPick(cur, val, isNew); _acHide(); cur.blur();
+  });
+  window.addEventListener('scroll', () => { if (pop.style.display === 'block') posicionar(); }, true);
+}
+
+// ---- Popover de recorrência (ancorado num botão-flag da linha) ----------------------------
+let _recPop = null;
+export function openRecPopover(anchor, defaults, onConfirm) {
+  if (!_recPop) {
+    _recPop = document.createElement('div'); _recPop.className = 'rec-pop'; _recPop.style.display = 'none';
+    document.body.appendChild(_recPop);
+    document.addEventListener('mousedown', (e) => { if (_recPop.style.display === 'block' && !_recPop.contains(e.target) && !e.target.closest('[data-rec]')) _recPop.style.display = 'none'; });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') _recPop.style.display = 'none'; });
+  }
+  const pop = _recPop;
+  const opts = PERIODOS_RECORRENCIA.map(p => `<option value="${p.id}" ${p.id === (defaults.periodo || 'mensal') ? 'selected' : ''}>${esc(p.nome)}</option>`).join('');
+  pop.innerHTML = `
+    <div class="rec-pop-title">🔁 Repetir lançamento</div>
+    <label class="rec-pop-f">Periodicidade<select class="rec-per">${opts}</select></label>
+    <label class="rec-pop-f">Repetir até<input type="date" class="rec-fim" value="${esc(defaults.dataFim || '')}"></label>
+    <div class="rec-pop-actions"><button type="button" class="rec-cancel">Cancelar</button><button type="button" class="btn-primary rec-ok">Gerar</button></div>`;
+  pop.style.display = 'block';
+  const r = anchor.getBoundingClientRect();
+  pop.style.left = Math.min(r.left + window.scrollX, window.scrollX + document.documentElement.clientWidth - 280) + 'px';
+  pop.style.top = (r.bottom + window.scrollY + 4) + 'px';
+  pop.querySelector('.rec-cancel').onclick = () => { pop.style.display = 'none'; };
+  pop.querySelector('.rec-ok').onclick = () => {
+    const periodo = pop.querySelector('.rec-per').value;
+    const dataFim = pop.querySelector('.rec-fim').value;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dataFim)) { alert('Escolha a data final (até quando repetir).'); return; }
+    pop.style.display = 'none'; onConfirm(periodo, dataFim);
+  };
+}
+
 // Indicador de tendência (atual vs anterior). Retorna HTML pronto.
 // Ex.: delta(120, 100) → "<span class="kpi-delta up">↑ 20,0%</span>"
 export function delta(atual, anterior) {
@@ -168,23 +252,51 @@ async function exportarPdf(container, filename, { fitOnePage = false } = {}) {
   const canvas = await capturar(container); if (!canvas) return;
   const jspdf = window.jspdf && window.jspdf.jsPDF;
   if (!jspdf) { alert('Biblioteca de PDF não carregou (sem internet?).'); return; }
-  const landscape = canvas.width > canvas.height * 1.25 || fitOnePage;   // tabela larga → paisagem; fit→sempre paisagem
+  const landscape = canvas.width > canvas.height * 1.25 || fitOnePage;
   const pdf = new jspdf({ orientation: landscape ? 'l' : 'p', unit: 'pt', format: 'a4' });
   const pw = pdf.internal.pageSize.getWidth(), ph = pdf.internal.pageSize.getHeight();
   const m = 20;
-  const img = canvas.toDataURL('image/png');
+  const img = canvas.toDataURL('image/jpeg', 0.82);   // JPEG comprimido → arquivo muito menor que PNG
   if (fitOnePage) {
-    // Escala a imagem inteira para caber em uma única página A4 paisagem (sem cortar).
     const ratio = Math.min((pw - m * 2) / canvas.width, (ph - m * 2) / canvas.height);
     const w = canvas.width * ratio, h = canvas.height * ratio;
-    const x = (pw - w) / 2, y = (ph - h) / 2;
-    pdf.addImage(img, 'PNG', x, y, w, h);
+    pdf.addImage(img, 'JPEG', (pw - w) / 2, (ph - h) / 2, w, h);
   } else {
     const iw = pw - m * 2, ih = canvas.height * iw / canvas.width;
     let heightLeft = ih, position = m;
-    pdf.addImage(img, 'PNG', m, position, iw, ih);
+    pdf.addImage(img, 'JPEG', m, position, iw, ih);
     heightLeft -= (ph - m * 2);
-    while (heightLeft > 0) { position = m - (ih - heightLeft); pdf.addPage(); pdf.addImage(img, 'PNG', m, position, iw, ih); heightLeft -= (ph - m * 2); }
+    while (heightLeft > 0) { position = m - (ih - heightLeft); pdf.addPage(); pdf.addImage(img, 'JPEG', m, position, iw, ih); heightLeft -= (ph - m * 2); }
+  }
+  pdf.save(filename + '.pdf');
+}
+
+// PDF NATIVO de texto (jspdf-autotable): leve e nítido. Para relatórios em tabela (DRE/DFC/etc).
+const _cellTxt = (c) => { const f = c.querySelector('input,select'); const v = f ? (f.tagName === 'SELECT' ? (f.options[f.selectedIndex]?.text || '') : f.value) : c.textContent; return String(v || '').replace(/\s+/g, ' ').trim(); };
+function exportTabelaPdf(container, filename) {
+  const jspdf = window.jspdf && window.jspdf.jsPDF;
+  if (!jspdf) { alert('Biblioteca de PDF não carregou (sem internet?).'); return; }
+  const tabelas = [...container.querySelectorAll('table')];
+  if (!tabelas.length) { alert('Sem tabela para exportar nesta tela.'); return; }
+  const pdf = new jspdf({ orientation: 'l', unit: 'pt', format: 'a4' });
+  if (typeof pdf.autoTable !== 'function') { return exportarPdf(container, filename, { fitOnePage: true }); }
+  const titulo = (container.querySelector('.page-title')?.textContent || filename).trim();
+  pdf.setFontSize(13); pdf.text(titulo, 40, 26);
+  let first = true;
+  for (const tbl of tabelas) {
+    const grab = (sel) => [...tbl.querySelectorAll(sel)].map(tr => [...tr.children].map(_cellTxt));
+    const body = grab('tbody tr').filter(r => r.some(c => c));
+    if (!body.length) continue;
+    pdf.autoTable({
+      head: grab('thead tr'), body, foot: grab('tfoot tr'),
+      startY: first ? 38 : pdf.lastAutoTable.finalY + 14,
+      styles: { fontSize: 7, cellPadding: 2, overflow: 'linebreak' },
+      headStyles: { fillColor: [29, 78, 216], textColor: 255, fontSize: 7 },
+      footStyles: { fillColor: [241, 245, 249], textColor: [15, 23, 42], fontStyle: 'bold' },
+      margin: { left: 28, right: 28 },
+      didParseCell: (data) => { const t = (data.cell.text || []).join(' ').trim(); if (/^-\s*R?\$?/.test(t) || /^\(\s*-/.test(t)) data.cell.styles.textColor = [220, 38, 38]; },
+    });
+    first = false;
   }
   pdf.save(filename + '.pdf');
 }
@@ -196,7 +308,10 @@ export function wireExport(container, filename = 'gpr', opts = {}) {
     if (tipo === 'print') { window.print(); return; }
     if (tipo === 'csv') { tabelaParaCsv(container, filename); return; }
     const txt = b.textContent; b.textContent = '...'; b.disabled = true;
-    try { if (tipo === 'png') await exportarPng(container, filename); else if (tipo === 'pdf') await exportarPdf(container, filename, opts); }
+    try {
+      if (tipo === 'png') await exportarPng(container, filename);
+      else if (tipo === 'pdf') { if (opts.modo === 'tabela') exportTabelaPdf(container, filename); else await exportarPdf(container, filename, opts); }
+    }
     catch (err) { console.error(err); alert('Falha ao exportar: ' + err.message); }
     finally { b.textContent = txt; b.disabled = false; }
   });

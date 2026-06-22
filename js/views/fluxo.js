@@ -10,7 +10,8 @@ import { kpisResumoHtml, chartsResumoHtml, montarChartsResumo } from './resumo.j
 function linha(label, arr, totalVal, cls = '') {
   const cells = arr.map(v => `<td class="num ${v < 0 ? 'neg' : ''}">${fmtBRL0(v)}</td>`).join('');
   const tot = `<td class="num ${totalVal < 0 ? 'neg' : ''}"><strong>${fmtBRL0(totalVal)}</strong></td>`;
-  return `<tr class="${cls}"><td>${esc(label)}</td>${cells}${tot}</tr>`;
+  const rc = `${cls} ${totalVal < 0 ? 'row-neg' : ''}`.trim();
+  return `<tr class="${rc}"><td>${esc(label)}</td>${cells}${tot}</tr>`;
 }
 
 function agingTable(titulo, ag, buckets, realLabel) {

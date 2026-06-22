@@ -49,5 +49,5 @@ export function render(container) {
         <tbody>${body}</tbody>
       </table>
     </div>`;
-  wireExport(container, 'Orcado-x-Realizado');
+  wireExport(container, 'Orcado-x-Realizado', { modo: 'tabela' });
 }

@@ -16,6 +16,7 @@
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js" defer></script>
 </head>
 <body>
   <div id="layout">
@@ -45,10 +46,11 @@
           <button id="nav-toggle" aria-label="Abrir menu">
             <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
           </button>
-          <div id="empresa-nome">—</div>
+          <div id="empresa-picker"></div>
         </div>
         <div id="topbar-right"></div>
       </header>
+      <div id="period-bar"></div>
       <section id="content"></section>
     </main>
   </div>

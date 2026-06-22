@@ -1,18 +1,16 @@
-// views/despesas.js — Lançamento de Despesas (add topo/rodapé, ordenar, data real, recebedor
-// dinâmico, recorrência, edição não-destrutiva, export).
-import { getState, addDespesa, addDespesasLote, duplicarDespesa, removerDespesa, setDespesaCampo, setDespesasFiltro, setDespesasSort, ensureFornecedor } from '../store.js';
+// views/despesas.js — Lançamento de Despesas. Filtra pelo cabeçalho global (ano+mês); legenda=filtro
+// de status; busca em todas as colunas; recorrência inline (🔁); recebedor com autocomplete custom.
+import { getState, addDespesa, duplicarDespesa, removerDespesa, setDespesaCampo, setDespesasFiltro, setDespesasSort, ensureFornecedor, aplicarRecorrenciaDespesa, nomeCategoria, nomeConta } from '../store.js';
 import { despesaDerivada } from '../calc.js';
-import { STATUS_DESPESA, FORMAS_PAGAMENTO, MESES, PERIODOS_RECORRENCIA } from '../config.js';
-import { pageHead, options, badgeDespesa, moneyInput, exportToolbar, wireExport, statusLegend } from '../ui.js';
-import { esc, num, fmtBRL0, chavesAno, anoAtivo } from '../util.js';
-import { expandirRecorrencia, nomeRecorrencia } from '../recurrence.js';
+import { STATUS_DESPESA, FORMAS_PAGAMENTO, MESES } from '../config.js';
+import { pageHead, options, badgeDespesa, moneyInput, exportToolbar, wireExport, statusFilterChips, attachAutocomplete, openRecPopover } from '../ui.js';
+import { esc, num, fmtBRL0, norm, anosSelecionados, anoCompetencia, chavesAno, anoAtivo } from '../util.js';
+import { nomeRecorrencia } from '../recurrence.js';
 
 const ROWCLS = { [STATUS_DESPESA.PAGO]: 'st-ok', [STATUS_DESPESA.ATRASADO]: 'st-bad', [STATUS_DESPESA.HOJE]: 'st-warn', [STATUS_DESPESA.APAGAR]: 'st-info' };
 const LEGENDA = [
-  { cls: 'st-ok',   label: STATUS_DESPESA.PAGO },
-  { cls: 'st-warn', label: STATUS_DESPESA.HOJE },
-  { cls: 'st-info', label: STATUS_DESPESA.APAGAR },
-  { cls: 'st-bad',  label: STATUS_DESPESA.ATRASADO },
+  { cls: 'st-ok', label: STATUS_DESPESA.PAGO }, { cls: 'st-warn', label: STATUS_DESPESA.HOJE },
+  { cls: 'st-info', label: STATUS_DESPESA.APAGAR }, { cls: 'st-bad', label: STATUS_DESPESA.ATRASADO },
 ];
 let _scrollNew = false;
 
@@ -21,37 +19,50 @@ function sortKey(l, campo) {
   if (campo === 'mesCompetencia') { const [mm, yy] = String(l.mesCompetencia || '').split('/'); const mi = MESES.indexOf(mm); return (Number(yy) || 0) * 100 + (mi < 0 ? 0 : mi); }
   return String(l[campo] || '');
 }
-
-function dataValida(iso) {
-  const m = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  return !!m && +m[1] >= 1900 && +m[1] <= 2999 && +m[2] >= 1 && +m[2] <= 12 && +m[3] >= 1 && +m[3] <= 31;
+const dataValida = (iso) => { const m = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{2})$/); return !!m && +m[1] >= 1900 && +m[1] <= 2999 && +m[2] >= 1 && +m[2] <= 12 && +m[3] >= 1 && +m[3] <= 31; };
+const ultimoDiaAno = (ano) => `${ano}-12-31`;
+// período por competência: ano = anoCompetencia, mês = índice do mm
+function noPeriodoComp(comp, anos, meses) {
+  const [mm, yy] = String(comp || '').split('/'); const mi = MESES.indexOf(mm); const y = Number(yy);
+  if (!y) return false;
+  if (anos.length && !anos.includes(y)) return false;
+  if (meses.length && !meses.includes(mi)) return false;
+  return true;
 }
 
 export function render(container) {
   const s = getState();
-  const filtro = s.ui.despesasFiltro || { status: '', busca: '', categoria: '' };
+  const filtro = s.ui.despesasFiltro || { status: [], busca: '', categoria: '' };
   const sort = s.ui.despesasSort || { campo: '', dir: 'asc' };
+  const anos = anosSelecionados(s), meses = s.ui.periodoMeses || [];
   const compOpts = chavesAno(anoAtivo(s)).map(k => ({ id: k, nome: k }));
+
   let linhas = s.despesas.map(despesaDerivada);
-  if (filtro.status) linhas = linhas.filter(d => d.status === filtro.status);
+  linhas = linhas.filter(d => !d.mesCompetencia && !d.dataVencimento ? true : noPeriodoComp(d.mesCompetencia, anos, meses) || (d.dataVencimento && noPeriodoData(d.dataVencimento, anos, meses)));
   if (filtro.categoria) linhas = linhas.filter(d => d.categoriaId === filtro.categoria);
-  if (filtro.busca) { const q = filtro.busca.toLowerCase(); linhas = linhas.filter(d => `${d.descricao} ${d.fornecedor}`.toLowerCase().includes(q)); }
+  if (filtro.status && filtro.status.length) linhas = linhas.filter(d => filtro.status.includes(d.status));
+  if (filtro.busca) {
+    const q = norm(filtro.busca);
+    linhas = linhas.filter(d => norm([d.descricao, d.fornecedor, nomeCategoria(d.categoriaId), nomeConta(d.contaId), d.formaPagamento, d.mesCompetencia, d.dataVencimento, d.dataPagamentoReal, d.valor, d.status, d.obs].join(' ')).includes(q));
+  }
   if (sort.campo) { const dir = sort.dir === 'asc' ? 1 : -1; linhas.sort((a, b) => { const x = sortKey(a, sort.campo), y = sortKey(b, sort.campo); return x < y ? -dir : x > y ? dir : 0; }); }
+
   const totalValor = linhas.reduce((a, d) => a + num(d.valor), 0);
   const arrow = (f) => sort.campo === f ? (sort.dir === 'asc' ? ' ▲' : ' ▼') : '';
   const addBtn = '<button class="btn btn-primary btn-sm" data-action="add">+ Adicionar linha</button>';
-  const recBtn = '<button class="btn btn-sm" data-action="open-rec" title="Gera várias linhas em sequência (mensal, trimestral…)">🔁 Lançamento recorrente</button>';
+  const catChip = filtro.categoria ? `<button class="chip active" data-action="limpar-cat" title="Remover filtro">Categoria: ${esc(nomeCategoria(filtro.categoria))} ✕</button>` : '';
 
   const rows = linhas.map(d => {
-    const recIcon = d.recorrenciaId ? `<span class="rec-mark" title="Recorrente (${esc(nomeRecorrencia(d.recorrenciaPeriodo))}${d.recorrenciaFim ? ', até ' + d.recorrenciaFim : ''})">🔁</span>` : '';
+    const recOn = !!d.recorrenciaId;
+    const recBtn = `<button class="rec-flag ${recOn ? 'on' : ''}" data-rec="${d.id}" title="${recOn ? 'Recorrente (' + esc(nomeRecorrencia(d.recorrenciaPeriodo)) + (d.recorrenciaFim ? ', até ' + d.recorrenciaFim : '') + ')' : 'Marcar como recorrente'}">🔁</button>`;
     return `
     <tr data-id="${d.id}" class="${ROWCLS[d.status] || ''}">
-      <td><input type="date" data-id="${d.id}" data-campo="dataVencimento" value="${esc(d.dataVencimento)}">${recIcon}</td>
+      <td><input type="date" data-id="${d.id}" data-campo="dataVencimento" value="${esc(d.dataVencimento)}"></td>
       <td><select data-id="${d.id}" data-campo="mesCompetencia">${options(compOpts, d.mesCompetencia, { placeholder: '—' })}</select></td>
       <td><input class="inp-flush" style="min-width:130px" data-id="${d.id}" data-campo="descricao" value="${esc(d.descricao)}"></td>
-      <td><select data-id="${d.id}" data-campo="categoriaId" style="min-width:160px">${options(s.categorias, d.categoriaId, { placeholder: '—' })}</select></td>
+      <td class="cat-cell"><select data-id="${d.id}" data-campo="categoriaId" style="min-width:160px">${options(s.categorias, d.categoriaId, { placeholder: '—' })}</select>${recBtn}</td>
       <td class="num">${moneyInput(d.valor, `data-id="${d.id}" data-campo="valor"`, 120)}</td>
-      <td><div class="cell-with-add"><input class="inp-flush" style="min-width:120px" list="forn-list" data-id="${d.id}" data-campo="fornecedor" value="${esc(d.fornecedor)}"><button class="btn btn-sm btn-icon" data-action="forn-novo" title="Cadastrar recebedor">+</button></div></td>
+      <td><input class="inp-flush" style="min-width:120px" data-ac="fornecedor" data-id="${d.id}" data-campo="fornecedor" value="${esc(d.fornecedor)}" autocomplete="off"></td>
       <td><select data-id="${d.id}" data-campo="contaId">${options(s.contas, d.contaId, { placeholder: '—' })}</select></td>
       <td><select data-id="${d.id}" data-campo="formaPagamento">${options(FORMAS_PAGAMENTO.map(f => ({ id: f, nome: f })), d.formaPagamento)}</select></td>
       <td><input type="date" title="Data do pagamento real (vazio = não pago)" data-id="${d.id}" data-campo="dataPagamentoReal" value="${esc(d.dataPagamentoReal)}"></td>
@@ -62,18 +73,16 @@ export function render(container) {
         <button class="btn btn-sm btn-icon" title="Excluir" data-action="rm" data-id="${d.id}">🗑</button>
       </td>
     </tr>`;
-  }).join('') || `<tr><td colspan="12" class="empty">Nenhuma despesa. Clique em “+ Adicionar linha”.</td></tr>`;
+  }).join('') || `<tr><td colspan="12" class="empty">Nenhuma despesa no período. Ajuste o ano/mês no topo ou clique em “+ Adicionar linha”.</td></tr>`;
 
   container.innerHTML = `
-    ${pageHead('Lançamento de Despesas', 'Mês Competência pode diferir do vencimento. Preencha “Pago em” (data real) para entrar no caixa. Clique nos cabeçalhos para ordenar.')}
+    ${pageHead('Lançamento de Despesas', 'Mostra os lançamentos do período selecionado no topo. Clique no status p/ filtrar; no 🔁 p/ repetir; nos cabeçalhos p/ ordenar.')}
     ${exportToolbar()}
-    ${statusLegend(LEGENDA)}
-    <datalist id="forn-list">${s.fornecedores.map(f => `<option value="${esc(f.nome)}">`).join('')}</datalist>
+    ${statusFilterChips(LEGENDA, filtro.status || [])}
     <div class="toolbar">
-      ${addBtn}${recBtn}
-      <select id="f-status"><option value="">Todos os status</option>${Object.values(STATUS_DESPESA).map(st => `<option value="${st}" ${filtro.status === st ? 'selected' : ''}>${st}</option>`).join('')}</select>
-      <select id="f-cat" title="Filtrar por categoria"><option value="">Todas as categorias</option>${s.categorias.map(c => `<option value="${c.id}" ${filtro.categoria === c.id ? 'selected' : ''}>${esc(c.nome)}</option>`).join('')}</select>
-      <input id="f-busca" type="text" placeholder="Buscar descrição / recebedor (Enter)" value="${esc(filtro.busca)}">
+      ${addBtn}
+      <input id="f-busca" class="search-grow" type="text" placeholder="🔎 Buscar em qualquer coluna…" value="${esc(filtro.busca)}">
+      ${catChip}
       <div class="spacer"></div>
       <span class="hint">${linhas.length} linha(s) · Total ${fmtBRL0(totalValor)}</span>
     </div>
@@ -90,65 +99,37 @@ export function render(container) {
         <tbody>${rows}</tbody>
         <tfoot><tr><td colspan="12">${addBtn}</td></tr></tfoot>
       </table>
-    </div>
-    ${dialogRecorrenciaHtml(s)}`;
+    </div>`;
 
   wire(container);
-  wireExport(container, 'Lancamento-Despesas');
+  attachAutocomplete(container, { selector: 'input[data-ac="fornecedor"]', getSource: () => getState().fornecedores, onPick: (inp, val) => { setDespesaCampo(inp.dataset.id, 'fornecedor', val, { silent: true }); ensureFornecedor(val); } });
+  wireExport(container, 'Lancamento-Despesas', { modo: 'tabela' });
   if (_scrollNew) { _scrollNew = false; requestAnimationFrame(() => focarNova(container)); }
+}
+
+// usa o helper de período por data ISO (vencimento)
+function noPeriodoData(iso, anos, meses) {
+  const m = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{2})$/); if (!m) return false;
+  const y = +m[1], mi = +m[2] - 1;
+  if (anos.length && !anos.includes(y)) return false;
+  if (meses.length && !meses.includes(mi)) return false;
+  return true;
 }
 
 function focarNova(container) {
   const fz = container.querySelector('.tbl-frozen'); if (fz) fz.scrollTop = fz.scrollHeight;
   const rows = container.querySelectorAll('tbody tr[data-id]');
   const last = rows[rows.length - 1];
-  if (last) {
-    last.scrollIntoView({ block: 'center' });
-    const inp = last.querySelector('input,select'); if (inp) inp.focus();
-  }
-}
-
-function dialogRecorrenciaHtml(s) {
-  const opts = PERIODOS_RECORRENCIA.map(p => `<option value="${p.id}">${esc(p.nome)}</option>`).join('');
-  const cats = s.categorias.map(c => `<option value="${c.id}">${esc(c.nome)}</option>`).join('');
-  const contas = s.contas.map(c => `<option value="${c.id}">${esc(c.nome)}</option>`).join('');
-  const fmas = FORMAS_PAGAMENTO.map(f => `<option value="${f}">${f}</option>`).join('');
-  return `<dialog id="dlg-rec-desp" class="dlg">
-    <form method="dialog">
-      <h3>🔁 Lançamento recorrente — Despesa</h3>
-      <div class="dlg-grid">
-        <label>Descrição<input name="descricao" placeholder="Ex.: Aluguel" required></label>
-        <label>Categoria<select name="categoriaId">${cats}</select></label>
-        <label>Recebedor<input list="forn-list" name="fornecedor" placeholder="Nome (opcional)"></label>
-        <label>Conta<select name="contaId">${contas}</select></label>
-        <label>Forma Pgto<select name="formaPagamento">${fmas}</select></label>
-        <label>Valor (R$)<input type="text" inputmode="decimal" name="valor" placeholder="0,00"></label>
-        <label>Periodicidade<select name="periodo">${opts}</select></label>
-        <label>1º vencimento<input type="date" name="dataInicio" required></label>
-        <label>Último vencimento<input type="date" name="dataFim" required></label>
-      </div>
-      <div class="dlg-actions">
-        <button type="button" data-action="cancel-rec">Cancelar</button>
-        <button type="submit" class="btn btn-primary">Gerar parcelas</button>
-      </div>
-    </form>
-  </dialog>`;
+  if (last) { last.scrollIntoView({ block: 'center' }); const inp = last.querySelector('input,select'); if (inp) inp.focus(); }
 }
 
 function wire(container) {
   container.addEventListener('change', (ev) => {
     const t = ev.target;
-    if (t.id === 'f-status') { setDespesasFiltro({ status: t.value }); return; }
-    if (t.id === 'f-cat') { setDespesasFiltro({ categoria: t.value }); return; }
     if (t.id === 'f-busca') { setDespesasFiltro({ busca: t.value }); return; }
     if (!t.dataset.id || !t.dataset.campo) return;
-
     const campo = t.dataset.campo;
-    if (campo.startsWith('data')) {
-      if (t.value !== '' && !dataValida(t.value)) return;
-      setDespesaCampo(t.dataset.id, campo, t.value, { silent: true });
-      return;
-    }
+    if (campo.startsWith('data')) { if (t.value !== '' && !dataValida(t.value)) return; setDespesaCampo(t.dataset.id, campo, t.value, { silent: true }); return; }
     if (t.tagName === 'SELECT') { setDespesaCampo(t.dataset.id, campo, t.value); return; }
     if (t.tagName === 'INPUT' && t.classList.contains('inp-flush')) {
       setDespesaCampo(t.dataset.id, campo, t.value, { silent: true });
@@ -157,54 +138,28 @@ function wire(container) {
     }
     setDespesaCampo(t.dataset.id, campo, t.value);
   });
-
   container.addEventListener('blur', (ev) => {
-    const t = ev.target; if (!(t instanceof HTMLInputElement)) return;
-    if (!t.classList.contains('money')) return;
-    if (!t.dataset.id || !t.dataset.campo) return;
-    setDespesaCampo(t.dataset.id, t.dataset.campo, num(t.value), { silent: true });
+    const t = ev.target; if (!(t instanceof HTMLInputElement) || !t.classList.contains('money')) return;
+    if (t.dataset.id && t.dataset.campo) setDespesaCampo(t.dataset.id, t.dataset.campo, num(t.value), { silent: true });
   }, true);
-
-  container.addEventListener('keydown', (ev) => {
-    if (ev.key === 'Enter' && ev.target.tagName === 'INPUT') ev.target.blur();
-  });
+  container.addEventListener('keydown', (ev) => { if (ev.key === 'Enter' && ev.target.tagName === 'INPUT') ev.target.blur(); });
 
   container.addEventListener('click', (ev) => {
-    const th = ev.target.closest('th[data-sortcol]');
-    if (th) { setDespesasSort(th.dataset.sortcol); return; }
+    const pill = ev.target.closest('[data-statusfilter]');
+    if (pill) { const cur = [...((getState().ui.despesasFiltro || {}).status || [])]; const v = pill.dataset.statusfilter; const i = cur.indexOf(v); i >= 0 ? cur.splice(i, 1) : cur.push(v); setDespesasFiltro({ status: cur }); return; }
+    const recBtn = ev.target.closest('[data-rec]');
+    if (recBtn) {
+      const desp = getState().despesas.find(x => x.id === recBtn.dataset.rec);
+      if (!desp || !desp.dataVencimento) { alert('Preencha o vencimento desta linha antes de repetir.'); return; }
+      openRecPopover(recBtn, { periodo: desp.recorrenciaPeriodo, dataFim: desp.recorrenciaFim || ultimoDiaAno(desp.dataVencimento.slice(0, 4)) }, (periodo, fim) => aplicarRecorrenciaDespesa(desp.id, periodo, fim));
+      return;
+    }
+    const th = ev.target.closest('th[data-sortcol]'); if (th) { setDespesasSort(th.dataset.sortcol); return; }
     const b = ev.target.closest('[data-action]'); if (!b) return;
     const { action, id } = b.dataset;
-    if (action === 'add') { _scrollNew = true; addDespesa({}); return; }
-    if (action === 'dup') { duplicarDespesa(id); return; }
-    if (action === 'rm') { removerDespesa(id); return; }
-    if (action === 'forn-novo') {
-      const nome = prompt('Nome do recebedor:'); if (!nome) return;
-      ensureFornecedor(nome.trim()); return;
-    }
-    if (action === 'open-rec') { container.querySelector('#dlg-rec-desp')?.showModal(); return; }
-    if (action === 'cancel-rec') { container.querySelector('#dlg-rec-desp')?.close(); return; }
+    if (action === 'add') { _scrollNew = true; addDespesa({}); }
+    else if (action === 'dup') duplicarDespesa(id);
+    else if (action === 'rm') removerDespesa(id);
+    else if (action === 'limpar-cat') setDespesasFiltro({ categoria: '' });
   });
-
-  const dlg = container.querySelector('#dlg-rec-desp');
-  if (dlg) {
-    dlg.addEventListener('submit', (ev) => {
-      ev.preventDefault();
-      const f = dlg.querySelector('form'); const fd = new FormData(f);
-      const dataInicio = fd.get('dataInicio'); const dataFim = fd.get('dataFim');
-      if (!dataValida(dataInicio) || !dataValida(dataFim)) { alert('Informe as datas (início e fim).'); return; }
-      const base = {
-        descricao: String(fd.get('descricao') || ''),
-        categoriaId: fd.get('categoriaId') || '',
-        fornecedor: String(fd.get('fornecedor') || ''),
-        contaId: fd.get('contaId') || '',
-        formaPagamento: fd.get('formaPagamento') || 'PIX',
-        valor: num(fd.get('valor')),
-      };
-      const lote = expandirRecorrencia(base, fd.get('periodo'), dataInicio, dataFim, 'despesa');
-      if (!lote.length) { alert('Não foi possível gerar a recorrência. Verifique as datas.'); return; }
-      if (base.fornecedor) ensureFornecedor(base.fornecedor);
-      addDespesasLote(lote);
-      dlg.close();
-    });
-  }
 }

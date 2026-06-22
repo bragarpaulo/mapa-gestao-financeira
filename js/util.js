@@ -100,6 +100,22 @@ export function chaveMes(i, ano) {
 export function chavesAno(ano) {
   return MESES.map((_, i) => chaveMes(i, ano));
 }
+// Concatena as chaves de vários anos (jan/25…dez/25, jan/26…) para gráficos multi-ano.
+export function chavesAnos(anos) {
+  return (anos || []).flatMap(a => chavesAno(a));
+}
+// Ano extraído de uma competência "jun/2026" -> 2026.
+export function anoCompetencia(comp) {
+  const m = String(comp || '').match(/\/(\d{4})$/);
+  return m ? Number(m[1]) : null;
+}
+// Testa se uma data ISO cai no período selecionado (anos + meses 0..11). Listas vazias = "todos".
+export function noPeriodo(iso, anos, meses) {
+  const dt = parseISO(iso); if (!dt) return false;
+  if (anos && anos.length && !anos.includes(dt.getFullYear())) return false;
+  if (meses && meses.length && !meses.includes(dt.getMonth())) return false;
+  return true;
+}
 
 // ---- Agregação -----------------------------------------------------------
 // SUMIFS genérico: soma rows[campoValor] onde TODAS as condições batem.
@@ -114,6 +130,11 @@ export function sumifs(rows, campoValor, condicoes) {
     if (ok) total += num(r[campoValor]);
   }
   return total;
+}
+
+// Normaliza texto p/ busca/comparação: sem acento, minúsculo, sem espaços nas pontas.
+export function norm(s) {
+  return String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
 }
 
 // Escapa texto para innerHTML seguro.
@@ -134,11 +155,29 @@ export function uid(prefix = 'id') {
 // Ano ativo selecionado. Fallback: último ano gerenciado, anoVigente (legado) ou ano atual.
 export function anoAtivo(s) {
   const ui = s && s.ui;
+  if (ui && Array.isArray(ui.anosSel) && ui.anosSel.length) return Math.max(...ui.anosSel.map(Number));  // ano primário = maior selecionado
   if (ui && ui.anoAtivo) return Number(ui.anoAtivo);
   const anos = s && s.empresa && s.empresa.anos;
   if (anos && anos.length) return Number(anos[anos.length - 1]);
   if (s && s.empresa && s.empresa.anoVigente) return Number(s.empresa.anoVigente);
   return new Date().getFullYear();
+}
+
+// Anos atualmente selecionados nos chips (ordenados). Fallback: [ano ativo].
+export function anosSelecionados(s) {
+  const ui = s && s.ui;
+  if (ui && Array.isArray(ui.anosSel) && ui.anosSel.length) return [...new Set(ui.anosSel.map(Number))].sort((a, b) => a - b);
+  return [anoAtivo(s)];
+}
+
+// Anos com dados (vendas/despesas) ∪ anos cadastrados ∪ ano corrente — gerados automaticamente.
+export function anosDisponiveis(s) {
+  const set = new Set();
+  (s && s.empresa && s.empresa.anos || []).forEach(a => set.add(Number(a)));
+  (s && s.vendas || []).forEach(v => { const y = anoDe(v.dataVenda) || anoDe(v.dataVencimento); if (y) set.add(y); });
+  (s && s.despesas || []).forEach(d => { const y = anoDe(d.dataVencimento) || anoCompetencia(d.mesCompetencia); if (y) set.add(y); });
+  set.add(new Date().getFullYear());
+  return [...set].filter(Boolean).sort((a, b) => a - b);
 }
 
 // Meses decorridos para YTD: ano passado = 12, ano atual = mês corrente (1..12), futuro = 0.

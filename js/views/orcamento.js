@@ -62,5 +62,5 @@ export function render(container) {
       setOrcamento(ano, t.dataset.catId, Number(t.dataset.mes), num(t.value));
     }
   });
-  wireExport(container, 'Orcamento');
+  wireExport(container, 'Orcamento', { modo: 'tabela' });
 }
