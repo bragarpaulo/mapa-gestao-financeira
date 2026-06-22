@@ -236,7 +236,7 @@ tr.row-nova > td { animation: gpr-rowflash 1.6s ease; }
      Seletores com id p/ vencer as regras-base (que vêm depois no arquivo). */
   #empresa-picker .logo-home { display: inline-grid; }
   #empresa-cfg, #theme-toggle { display: none; }
-  #btn-tema { display: flex; }
+  #btn-tema { display: block; text-align: center; }
   #emp-dd .emp-trigger { max-width: 52vw; }
   .page-title { font-size: 20px; }
   .kpis { grid-template-columns: repeat(2, 1fr); gap: 10px; }
@@ -307,7 +307,7 @@ tr.row-nova > td { animation: gpr-rowflash 1.6s ease; }
 .fluxo-hero-spark { background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.22); border-radius: 14px; padding: 12px; backdrop-filter: blur(4px); }
 .fluxo-hero-spark-label { font-size: 11.5px; font-weight: 700; letter-spacing: .03em; opacity: .92; }
 .fluxo-hero-spark-wrap { position: relative; height: 64px; margin-top: 6px; }
-@media (max-width: 880px) { .fluxo-hero { grid-template-columns: 1fr; } .fluxo-hero-value { font-size: 30px; } }
+@media (max-width: 880px) { .fluxo-hero { grid-template-columns: 1fr; } .fluxo-hero-value { font-size: 30px; } .fluxo-hero-sparks { grid-template-columns: 1fr; } }
 
 /* Setas de tendência (delta) — usadas no hero do Fluxo */
 .kpi-delta { display: inline-flex; align-items: center; gap: 4px; font-weight: 700; font-size: 12.5px; padding: 3px 8px; border-radius: 999px; }

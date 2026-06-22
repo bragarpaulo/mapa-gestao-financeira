@@ -1,7 +1,7 @@
 // views/inicio.js — Início executivo: resumo do dia (caixa, a receber/pagar, ações, meta, atalhos).
 import { getState } from '../store.js';
 import { calcDashboard, calcFluxo, calcControleMetas, vendasDerivadas, despesasDerivadas } from '../calc.js';
-import { STATUS_VENDA, STATUS_DESPESA } from '../config.js';
+import { STATUS_VENDA, STATUS_DESPESA, MESES } from '../config.js';
 import { kpi, gauge, delta, pageHead } from '../ui.js';
 import { esc, num, fmtBRL0, fmtPct } from '../util.js';
 import * as charts from '../charts.js';
@@ -94,5 +94,7 @@ export function render(container) {
       <a class="btn" href="#fluxo">💵 Fluxo de Caixa</a>
     </div>`;
 
-  charts.sparkline('ini-spark', f.saldoConta, '#ffffff');   // branco p/ contrastar no hero (gradiente)
+  // Saldo mês a mês até o mês atual (no ano vigente); anos passados/futuros mostram o ano todo.
+  const ate = (d.ano === new Date().getFullYear()) ? mesAtual + 1 : 12;
+  charts.sparkline('ini-spark', f.saldoConta.slice(0, ate), '#ffffff', MESES.slice(0, ate));   // branco contrasta no hero
 }

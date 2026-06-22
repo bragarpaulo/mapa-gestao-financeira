@@ -242,12 +242,13 @@ export function lucroChart(id, labels, lucro, onClick, mostrar = true) {
 }
 
 // Sparkline (mini-linha em card) — sem eixos, sem legenda, sem grid. Compacto.
-export function sparkline(id, valores, cor = '#1D4ED8') {
+export function sparkline(id, valores, cor = '#1D4ED8', labels = null) {
   return make(id, {
     type: 'line',
-    data: { labels: valores.map((_, i) => i + 1), datasets: [{ data: valores, borderColor: cor, backgroundColor: cor + '33', fill: true, tension: .3, pointRadius: 0, borderWidth: 2 }] },
+    data: { labels: labels || valores.map((_, i) => i + 1), datasets: [{ data: valores, borderColor: cor, backgroundColor: cor + '33', fill: true, tension: .3, pointRadius: 0, pointHoverRadius: 4, pointBackgroundColor: cor, pointBorderColor: cor, borderWidth: 2 }] },
     options: {
       responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },   // hover em qualquer ponto da linha → mostra o mês
       plugins: { legend: { display: false }, tooltip: { enabled: true, callbacks: { label: (ctx) => BRLfull(ctx.parsed.y) } } },
       scales: { x: { display: false }, y: { display: false } },
       elements: { line: { borderJoinStyle: 'round' } },

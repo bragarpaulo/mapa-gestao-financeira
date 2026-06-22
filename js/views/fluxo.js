@@ -149,8 +149,10 @@ export function render(container) {
     </div>`;
 
   charts.linhaProjecao('ch-proj', proj.labels, proj.saldo);
-  charts.sparkline('ch-sp-saldo', f.saldoConta, '#ffffff');   // hero tem gradiente → branco contrasta
-  charts.sparkline('ch-sp-ger', f.resultado, '#ffffff');
+  // Mês a mês até o mês atual (no ano vigente); anos passados/futuros mostram o ano todo.
+  const ateSpark = (anoAtivo(s) === new Date().getFullYear()) ? mesAtual + 1 : 12;
+  charts.sparkline('ch-sp-saldo', f.saldoConta.slice(0, ateSpark), '#ffffff', MESES.slice(0, ateSpark));   // hero tem gradiente → branco contrasta
+  charts.sparkline('ch-sp-ger', f.resultado.slice(0, ateSpark), '#ffffff', MESES.slice(0, ateSpark));
   montarChartsResumo(d);
   wire(container);
 }

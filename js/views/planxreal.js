@@ -11,12 +11,16 @@ function linha(label, orc, real, cls = '', { attrs = '', caret = false } = {}) {
   const dif = real - orc;                 // > 0 = estourou o orçamento
   const pct = orc ? real / orc : '';
   const lbl = caret ? `<span class="grp-caret">▾</span> ${esc(label)}` : esc(label);
+  // Cor por desempenho vs orçamento: verde = dentro do orçado, vermelho = estourou.
+  const estourou = orc > 0 && real > orc;
+  const realCls = orc <= 0 ? '' : (estourou ? 'neg' : 'pos');
+  const pctCls = pct === '' ? '' : (pct > 1 ? 'neg' : 'pos');
   return `<tr class="${cls}" ${attrs}>
     <td>${lbl}</td>
     <td class="num">${fmtBRL0(orc)}</td>
-    <td class="num">${fmtBRL0(real)}</td>
+    <td class="num ${realCls}">${fmtBRL0(real)}</td>
     <td class="num ${dif > 0 ? 'neg' : 'pos'}">${fmtBRL0(dif)}</td>
-    <td class="num">${pct === '' ? '—' : fmtPct(pct)}</td>
+    <td class="num ${pctCls}">${pct === '' ? '—' : fmtPct(pct)}</td>
   </tr>`;
 }
 
