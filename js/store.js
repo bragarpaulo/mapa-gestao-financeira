@@ -174,7 +174,10 @@ export { cloudEnabled };
 // ---- Empresas ------------------------------------------------------------
 export function getCompanies() { return root.companies.map(c => ({ id: c.id, nome: c.empresa.nome, cnpj: c.empresa.cnpj })); }
 export function getActiveId() { return root.activeId; }
-export function setActiveEmpresa(id) { if (root.companies.find(c => c.id === id)) { root.activeId = id; save(); emit(); } }
+export function setActiveEmpresa(id) { if (root.companies.find(c => c.id === id)) { root.activeId = id; aplicarVigente(active()); save(); emit(); } }
+// Define a seleção do cabeçalho para o ANO e MÊS vigentes (chamado no boot e ao trocar de empresa).
+function aplicarVigente(c) { if (!c || !c.ui) return; const y = anoCorrente(); c.ui.anosSel = [y]; c.ui.anoAtivo = y; c.ui.periodoMeses = [mesCorrente()]; }
+export function aplicarPeriodoVigente() { update(s => aplicarVigente(s), { silent: true }); }
 export function addEmpresa() { const c = emptyCompany(active()?.ui.anoAtivo || anoCorrente(), 'Nova Empresa'); root.companies.push(c); root.activeId = c.id; save(); emit(); }
 export function removerEmpresa(id) {
   root.companies = root.companies.filter(c => c.id !== id);

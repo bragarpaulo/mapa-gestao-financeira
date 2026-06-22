@@ -59,7 +59,7 @@ empresaPickerEl.addEventListener('change', (e) => {
   if (e.target.value === '__new__') { addEmpresa(); location.hash = '#cadastro'; }
   else setActiveEmpresa(e.target.value);
 });
-empresaPickerEl.addEventListener('click', (e) => { if (e.target.closest('#empresa-cfg')) openEmpresaDialog(); });
+empresaPickerEl.addEventListener('click', (e) => { if (e.target.closest('#empresa-cfg')) location.hash = '#cadastro'; });
 topRightEl.addEventListener('click', (e) => { if (e.target.closest('#theme-toggle')) { setTema(getTema() === 'dark' ? 'light' : 'dark'); applyTema(); } });
 
 // ---- Cabeçalho de PERÍODO global (anos + meses em chips), sticky abaixo do topbar ----
@@ -110,45 +110,7 @@ document.addEventListener('mouseup', () => {
 });
 periodBarEl.addEventListener('click', (e) => { const a = e.target.closest('[data-ano]'); if (a) toggleAno(a.dataset.ano); });
 
-// ---- Modal de configuração da empresa (criado uma vez) ----
-let _empresaDlg = null;
-function buildEmpresaDialog() {
-  const dlg = document.createElement('dialog'); dlg.id = 'dlg-empresa'; dlg.className = 'dlg';
-  dlg.innerHTML = `<form method="dialog">
-      <h3>⚙ Configuração da empresa</h3>
-      <div class="dlg-grid">
-        <label>Nome<input name="nome"></label>
-        <label>CNPJ<input name="cnpj" placeholder="00.000.000/0000-00"></label>
-        <label>Data de início<input type="date" name="dataInicio"></label>
-      </div>
-      <div class="dlg-actions" style="justify-content:space-between">
-        <button type="button" class="danger" data-action="rm-empresa">🗑 Remover empresa</button>
-        <span><button type="button" data-action="close">Fechar</button> <button type="submit" class="btn-primary">Salvar</button></span>
-      </div>
-    </form>`;
-  document.body.appendChild(dlg);
-  dlg.addEventListener('submit', (ev) => {
-    ev.preventDefault();
-    const fd = new FormData(dlg.querySelector('form'));
-    setEmpresaCampo('nome', fd.get('nome')); setEmpresaCampo('cnpj', fd.get('cnpj')); setEmpresaCampo('dataInicio', fd.get('dataInicio'));
-    dlg.close();
-  });
-  dlg.addEventListener('click', (ev) => {
-    const b = ev.target.closest('[data-action]'); if (!b) return;
-    if (b.dataset.action === 'close') dlg.close();
-    else if (b.dataset.action === 'rm-empresa') {
-      if (getCompanies().length <= 1) { alert('É a única empresa — use “Limpar tudo” para zerar.'); return; }
-      if (confirm('Remover a empresa atual e TODOS os seus dados?')) { removerEmpresa(getActiveId()); dlg.close(); }
-    }
-  });
-  return dlg;
-}
-function openEmpresaDialog() {
-  if (!_empresaDlg) _empresaDlg = buildEmpresaDialog();
-  const e = getState().empresa, f = _empresaDlg.querySelector('form');
-  f.nome.value = e.nome || ''; f.cnpj.value = e.cnpj || ''; f.dataInicio.value = e.dataInicio || '';
-  _empresaDlg.showModal();
-}
+// (Config da empresa abre direto a aba Cadastro — sem modal.)
 
 function buildNav() {
   navEl.innerHTML = ABAS.map(a => `<a class="nav-item" data-route="${a.id}" href="#${a.id}"><span class="nav-ico">${a.icone}</span>${esc(a.nome)}</a>`).join('');
@@ -195,12 +157,13 @@ document.addEventListener('click', (e) => {
 });
 
 applyTema();
+store.aplicarPeriodoVigente();   // sempre inicia no ano + mês vigentes
 if (!location.hash) location.hash = '#inicio';
 buildNav();
 renderView();
 window.addEventListener('hashchange', renderView);
 subscribe(() => { applyTema(); renderView(); });
-initCloud().then(ok => { if (ok) renderTopbar(); });
+initCloud().then(() => { store.aplicarPeriodoVigente(); renderView(); });   // após carregar a nuvem, volta ao mês/ano vigentes
 
 window.__MGF = { renderView, getState };
 window.__store = store;

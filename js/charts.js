@@ -3,6 +3,12 @@ const instances = {};
 export function chartOk() { return typeof Chart !== 'undefined'; }
 export function destroyAll() { Object.keys(instances).forEach(id => { try { instances[id].destroy(); } catch (e) {} delete instances[id]; }); }
 
+// Cores sensíveis ao tema (claro/escuro) para grid, eixos e rótulos.
+const isDark = () => (typeof document !== 'undefined') && document.documentElement.dataset.theme === 'dark';
+const cGrid = () => isDark() ? 'rgba(148,163,184,.16)' : '#eef2f7';
+const cTxt = () => isDark() ? '#cbd5e1' : '#475569';
+const cLabelAcima = () => isDark() ? '#e6edf7' : '#1f2937';
+
 const BRLfmt = (v) => 'R$ ' + Number(v).toLocaleString('pt-BR', { maximumFractionDigits: 0 });
 const BRLfull = (v) => 'R$ ' + Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const tooltipBRL = { callbacks: { label: (ctx) => { const v = ctx.parsed?.y ?? ctx.parsed?.x ?? ctx.parsed; return `${ctx.dataset.label ? ctx.dataset.label + ': ' : ''}${BRLfull(v)}`; } } };
@@ -30,8 +36,9 @@ const barValueLabels = {
         const val = ds.data[i];
         if (val == null || val === 0) return;
         const txt = compactBRL(val);
+        const acima = cLabelAcima();
         ctx.save();
-        ctx.fillStyle = '#1f2937';
+        ctx.fillStyle = acima;
         if (horizontal) {
           ctx.font = '700 10px Inter, system-ui, sans-serif';
           ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
@@ -46,7 +53,7 @@ const barValueLabels = {
           ctx.textBaseline = 'middle';
           if (tlen <= topGap - 4) {                          // cabe acima da barra
             ctx.translate(bar.x, bar.y - 3); ctx.rotate(-Math.PI / 2);
-            ctx.textAlign = 'left'; ctx.fillStyle = '#1f2937';
+            ctx.textAlign = 'left'; ctx.fillStyle = acima;
           } else {                                           // não cabe: dentro do topo (branco)
             fs = 9; ctx.font = `700 ${fs}px Inter, system-ui, sans-serif`;
             ctx.translate(bar.x, bar.y + 4); ctx.rotate(-Math.PI / 2);
@@ -85,6 +92,8 @@ function make(id, config, onClick) {
   if (typeof Chart === 'undefined') return false;
   const el = document.getElementById(id);
   if (!el) return false;
+  Chart.defaults.color = cTxt();           // cor padrão de eixos/legenda conforme o tema
+  Chart.defaults.borderColor = cGrid();
   if (instances[id]) { try { instances[id].destroy(); } catch (e) {} }
   config.options = config.options || {};
   if (onClick) {
@@ -105,8 +114,8 @@ const gridOpts = (brlAxis = 'y') => {
     layout: { padding: { top: 22, right: 8 } },   // espaço p/ o rótulo acima das barras
     plugins: { legend: { labels: { boxWidth: 12, font: { size: 11 } } }, tooltip: tooltipBRL },
     scales: {
-      x: { ticks: xTicks, grid: { color: '#eef2f7' } },
-      y: { ticks: yTicks, grid: { color: '#eef2f7' } },
+      x: { ticks: xTicks, grid: { color: cGrid() } },
+      y: { ticks: yTicks, grid: { color: cGrid() } },
     },
   };
 };
