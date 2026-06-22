@@ -5,7 +5,7 @@ import { MESES } from '../config.js';
 import { pageHead, thMeses, moneyInput, delta, chartDlBtn } from '../ui.js';
 import { esc, num, fmtBRL0, anoAtivo } from '../util.js';
 import * as charts from '../charts.js';
-import { kpisResumoHtml, cardReceitaDespesa, cardLucro, montarChartsResumo } from './resumo.js';
+import { kpisCaixaProvisoes, cardReceitaDespesa, cardLucro, montarChartsResumo } from './resumo.js';
 
 function linha(label, arr, totalVal, cls = '') {
   const cells = arr.map(v => `<td class="num ${v < 0 ? 'neg' : ''}">${fmtBRL0(v)}</td>`).join('');
@@ -104,7 +104,7 @@ export function render(container) {
     </div>
 
     <div class="section-title" style="margin-top:18px">📊 Visão de Caixa</div>
-    ${kpisResumoHtml(d)}
+    ${kpisCaixaProvisoes(d)}
     <div class="section-title">📉 Gráficos</div>
     ${cardReceitaDespesa(d)}
     ${cardLucro(d)}
