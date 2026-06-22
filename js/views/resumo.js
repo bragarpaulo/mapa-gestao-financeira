@@ -67,7 +67,7 @@ export function cardReceitaDespesa(d) {
   const margem = d.receita ? d.lucro / d.receita : '';
   const margemAnual = d.totalAnualReceita ? d.totalAnualLucro / d.totalAnualReceita : '';
   return `
-    <div class="card chart-box">
+    <div class="card chart-box" style="margin-top:14px">
       ${chartHead('Receita × Despesa × Lucro (ano)', 'ch-recdesp', 'Receita-Despesa-Lucro')}
       <div class="chart-canvas-wrap"><canvas id="ch-recdesp"></canvas></div>
       ${resumoLinha([[' Receita', fmtBRL0(d.receita), 'pos'], [' Despesa', fmtBRL0(d.despesaTotal), 'neg'], [' Lucro', fmtBRL0(d.lucro), d.lucro >= 0 ? 'pos' : 'neg'], [' Margem', margem === '' ? '—' : fmtPct(margem)]])}
@@ -86,16 +86,16 @@ export function cardLucro(d) {
 }
 export function cardRecebPag(d) {
   return `
-    <div class="card chart-box">
+    <div class="card chart-box" style="margin-top:14px">
       ${chartHead('Recebimentos × Pagamentos × Geração de Caixa (ano)', 'ch-recpag', 'Recebimentos-Pagamentos')}
       <div class="chart-canvas-wrap"><canvas id="ch-recpag"></canvas></div>
       ${resumoLinha([[' Recebimentos', fmtBRL0(d.recebimentos), 'pos'], [' Pagamentos', fmtBRL0(d.pagamentos), 'neg'], [' Geração', fmtBRL0(d.geracaoCaixa), d.geracaoCaixa >= 0 ? 'pos' : 'neg']])}
       ${totalAnualLinha([[' Recebimentos (ano)', fmtBRL0(d.totalAnualReceita), 'pos'], [' Pagamentos (ano)', fmtBRL0(d.totalAnualDespesa), 'neg'], [' Geração (ano)', fmtBRL0(d.totalAnualGeracao), d.totalAnualGeracao >= 0 ? 'pos' : 'neg']])}
     </div>`;
 }
-// Combinado (Fluxo de Caixa): os 3 cards em sequência.
+// Combinado (Fluxo de Caixa): os 3 cards em sequência (cada um já traz margin-top próprio).
 export function chartsResumoHtml(d) {
-  return cardReceitaDespesa(d) + cardRecebPag(d).replace('class="card chart-box"', 'class="card chart-box" style="margin-top:14px"') + cardLucro(d);
+  return cardReceitaDespesa(d) + cardRecebPag(d) + cardLucro(d);
 }
 
 export function montarChartsResumo(d, onClickMes) {

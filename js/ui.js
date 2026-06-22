@@ -215,13 +215,41 @@ export function seg(name, opts, active) {
   return `<div class="seg" data-seg="${name}">` + opts.map(o => `<button class="${o.val === active ? 'active' : ''}" data-seg-val="${o.val}">${esc(o.label)}</button>`).join('') + `</div>`;
 }
 
-// Barra de exportação (CSV + Imagem PNG + PDF + Imprimir).
-export function exportToolbar() {
-  return `<div class="toolbar no-print" style="justify-content:flex-end;gap:8px;flex-wrap:wrap">
-    <button class="btn btn-sm" data-export="csv">⬇ CSV</button>
-    <button class="btn btn-sm" data-export="png">🖼️ Imagem</button>
-    <button class="btn btn-sm" data-export="pdf">📄 PDF</button>
-    <button class="btn btn-sm" data-export="print">🖨 Imprimir</button></div>`;
+// Barra de exportação (CSV + Imagem PNG + PDF + Imprimir). `left` = HTML opcional no canto esquerdo.
+export function exportToolbar(left = '') {
+  return `<div class="toolbar no-print" style="justify-content:space-between;gap:8px;flex-wrap:wrap">
+    <div class="flex" style="gap:8px;flex-wrap:wrap">${left}</div>
+    <div class="flex" style="gap:8px;flex-wrap:wrap">
+      <button class="btn btn-sm" data-export="csv">⬇ CSV</button>
+      <button class="btn btn-sm" data-export="png">🖼️ Imagem</button>
+      <button class="btn btn-sm" data-export="pdf">📄 PDF</button>
+      <button class="btn btn-sm" data-export="print">🖨 Imprimir</button>
+    </div></div>`;
+}
+
+// Botão "expandir/recolher todos os grupos" + fiação. Para tabelas com .grp-row[data-grp] e tr[data-grpcat].
+export function collapseAllBtn() {
+  return `<button class="btn btn-sm" data-collapse-all title="Expandir ou recolher todos os grupos">⊟ Recolher tudo</button>`;
+}
+export function wireCollapse(container) {
+  const setGrupo = (gid, fechar) => {
+    const g = container.querySelector(`.grp-row[data-grp="${CSS.escape(gid)}"]`);
+    if (g) g.classList.toggle('collapsed', fechar);
+    container.querySelectorAll(`tr[data-grpcat="${CSS.escape(gid)}"]`).forEach(r => { r.style.display = fechar ? 'none' : ''; });
+  };
+  container.addEventListener('click', (ev) => {
+    const all = ev.target.closest('[data-collapse-all]');
+    if (all) {
+      const fechar = !all.classList.contains('is-collapsed');
+      container.querySelectorAll('.grp-row[data-grp]').forEach(g => setGrupo(g.dataset.grp, fechar));
+      all.classList.toggle('is-collapsed', fechar);
+      all.textContent = fechar ? '⊞ Expandir tudo' : '⊟ Recolher tudo';
+      return;
+    }
+    const g = ev.target.closest('.grp-row[data-grp]');
+    if (!g || ev.target.closest('input')) return;
+    setGrupo(g.dataset.grp, !g.classList.contains('collapsed'));
+  });
 }
 
 function baixar(href, nome) { const a = document.createElement('a'); a.href = href; a.download = nome; a.click(); }

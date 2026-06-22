@@ -58,10 +58,10 @@ export function render(container) {
 
     <div class="section-title">No mês — ${esc(d.periodoLabel)}</div>
     <div class="grid kpis">
-      ${kpi('A receber', fmtBRL0(d.contasReceberMes), { variant: 'k-blue', cls: 'blue', route: 'vendas' })}
-      ${kpi('A pagar', fmtBRL0(d.contasPagarMes), { variant: 'k-red', cls: 'red', route: 'despesas' })}
-      ${kpi('Inadimplência', fmtBRL0(d.inadimplencia), { variant: 'k-orange', cls: d.inadimplencia > 0 ? 'red' : '', route: 'vendas' })}
-      ${kpi('Lucro do mês', fmtBRL0(d.lucro), { variant: d.lucro >= 0 ? 'k-green' : 'k-red', cls: d.lucro >= 0 ? 'green' : 'red', route: 'dre' })}
+      ${kpi('📥 A receber', fmtBRL0(d.contasReceberMes), { variant: 'k-blue', cls: 'blue', route: 'vendas' })}
+      ${kpi('📤 A pagar', fmtBRL0(d.contasPagarMes), { variant: 'k-red', cls: 'red', route: 'despesas' })}
+      ${kpi('⚠️ Inadimplência', fmtBRL0(d.inadimplencia), { variant: 'k-orange', cls: d.inadimplencia > 0 ? 'red' : '', route: 'vendas' })}
+      ${kpi('📈 Lucro do mês', fmtBRL0(d.lucro), { variant: d.lucro >= 0 ? 'k-green' : 'k-red', cls: d.lucro >= 0 ? 'green' : 'red', route: 'dre' })}
     </div>
 
     <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(320px,1fr));margin-top:6px">
@@ -78,10 +78,10 @@ export function render(container) {
       <div class="card card-pad">
         <div class="card-head">🔮 Previsão</div>
         <div class="prev-grid">
-          <div><div class="prev-lbl">Saldo previsto (próx. meses)</div><div class="prev-val">${fmtBRL0(d.saldoProvProx)}</div></div>
-          <div><div class="prev-lbl">A receber (próximos)</div><div class="prev-val">${fmtBRL0(d.contasReceberProx)}</div></div>
-          <div><div class="prev-lbl">A pagar (total em aberto)</div><div class="prev-val">${fmtBRL0(d.contasPagarTotal)}</div></div>
-          <div><div class="prev-lbl">Lucro projetado (ano)</div><div class="prev-val ${d.totalAnualLucro >= 0 ? 'green' : 'red'}">${fmtBRL0(d.totalAnualLucro)}</div></div>
+          <div><div class="prev-lbl">🔮 Saldo previsto (próx. meses)</div><div class="prev-val">${fmtBRL0(d.saldoProvProx)}</div></div>
+          <div><div class="prev-lbl">📥 A receber (próximos)</div><div class="prev-val">${fmtBRL0(d.contasReceberProx)}</div></div>
+          <div><div class="prev-lbl">📤 A pagar (total em aberto)</div><div class="prev-val">${fmtBRL0(d.contasPagarTotal)}</div></div>
+          <div><div class="prev-lbl">📈 Lucro projetado (ano)</div><div class="prev-val ${d.totalAnualLucro >= 0 ? 'green' : 'red'}">${fmtBRL0(d.totalAnualLucro)}</div></div>
         </div>
         <div class="callout" style="margin-top:12px">${projecaoFrase}</div>
       </div>

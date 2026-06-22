@@ -49,8 +49,11 @@ function renderTopbar() {
   const comps = getCompanies(), activeC = getActiveId();
   const compOpts = comps.map(c => `<option value="${c.id}" ${c.id === activeC ? 'selected' : ''}>${esc(c.nome || '(sem nome)')}</option>`).join('');
   empresaPickerEl.innerHTML = `
+    <button id="logo-home" class="icon-btn logo-home" title="Ir para o Início" aria-label="Início">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V14M10 20V10M16 20V13"/><path d="M3 10l6-5 4 3 6-6"/><path d="M19 2h3v3"/></svg>
+    </button>
     <select id="empresa-sel" class="empresa-select" title="Empresa ativa">${compOpts}<option value="__new__">➕ Nova empresa…</option></select>
-    <button id="empresa-cfg" class="icon-btn" title="Configurar empresa">⚙</button>`;
+    <button id="empresa-cfg" class="icon-btn" title="Configurar empresa"><span class="ico-glyph">⚙</span></button>`;
   topRightEl.innerHTML = `<button id="theme-toggle" class="icon-btn" title="Alternar tema claro/escuro">${getTema() === 'dark' ? '☀️' : '🌙'}</button>`;
 }
 
@@ -59,7 +62,10 @@ empresaPickerEl.addEventListener('change', (e) => {
   if (e.target.value === '__new__') { addEmpresa(); location.hash = '#cadastro'; }
   else setActiveEmpresa(e.target.value);
 });
-empresaPickerEl.addEventListener('click', (e) => { if (e.target.closest('#empresa-cfg')) location.hash = '#cadastro'; });
+empresaPickerEl.addEventListener('click', (e) => {
+  if (e.target.closest('#logo-home')) { location.hash = '#inicio'; return; }
+  if (e.target.closest('#empresa-cfg')) location.hash = '#cadastro';
+});
 topRightEl.addEventListener('click', (e) => { if (e.target.closest('#theme-toggle')) { setTema(getTema() === 'dark' ? 'light' : 'dark'); applyTema(); } });
 
 // ---- Cabeçalho de PERÍODO global (anos + meses em chips), sticky abaixo do topbar ----

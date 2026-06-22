@@ -2,15 +2,16 @@
 import { getState, setOrcamento } from '../store.js';
 import { GRUPOS } from '../config.js';
 import { calcOrcamento } from '../calc.js';
-import { pageHead, thMeses, moneyInput, exportToolbar, wireExport } from '../ui.js';
+import { pageHead, thMeses, moneyInput, exportToolbar, wireExport, collapseAllBtn, wireCollapse } from '../ui.js';
 import { esc, num, fmtBRL0, anoAtivo } from '../util.js';
 
 const GTITULO = Object.fromEntries(GRUPOS.map(g => [g.id, g.titulo.replace('(-) Total', 'Orçado').replace('(-)', 'Orçado')]));
 
-function linhaDerivada(label, arr, cls) {
+function linhaDerivada(label, arr, cls, { attrs = '', caret = false } = {}) {
   const cells = arr.map(v => `<td class="num">${fmtBRL0(v)}</td>`).join('');
   const tot = arr.reduce((a, b) => a + b, 0);
-  return `<tr class="${cls}"><td>${esc(label)}</td>${cells}<td class="num"><strong>${fmtBRL0(tot)}</strong></td></tr>`;
+  const lbl = caret ? `<span class="grp-caret">▾</span> ${esc(label)}` : esc(label);
+  return `<tr class="${cls}" ${attrs}><td>${lbl}</td>${cells}<td class="num"><strong>${fmtBRL0(tot)}</strong></td></tr>`;
 }
 
 export function render(container) {
@@ -18,16 +19,16 @@ export function render(container) {
   const ano = anoAtivo(s);
   const o = calcOrcamento(s);
 
-  const catRow = (cat) => {
+  const catRow = (cat, gid) => {
     const arr = o.orc(cat.id);
     const cells = arr.map((v, i) => `<td class="num">${moneyInput(v, `data-cat-id="${cat.id}" data-mes="${i}"`, 110)}</td>`).join('');
     const tot = arr.reduce((a, b) => a + b, 0);
-    return `<tr class="cat-row"><td>${esc(cat.nome)}</td>${cells}<td class="num">${fmtBRL0(tot)}</td></tr>`;
+    return `<tr class="cat-row" data-grpcat="${gid}"><td>${esc(cat.nome)}</td>${cells}<td class="num">${fmtBRL0(tot)}</td></tr>`;
   };
 
   const grupo = (gid) => {
-    let h = linhaDerivada(GTITULO[gid], o.grupos[gid], 'grp-row');
-    for (const cat of s.categorias.filter(c => c.grupo === gid)) h += catRow(cat);
+    let h = linhaDerivada(GTITULO[gid], o.grupos[gid], 'grp-row', { attrs: `data-grp="${gid}"`, caret: true });
+    for (const cat of s.categorias.filter(c => c.grupo === gid)) h += catRow(cat, gid);
     return h;
   };
 
@@ -47,7 +48,7 @@ export function render(container) {
 
   container.innerHTML = `
     ${pageHead('Orçamento de Despesas', `Planejamento de ${ano} · Meta de Receita vem dos canais (Cadastro).`)}
-    ${exportToolbar()}
+    ${exportToolbar(collapseAllBtn())}
     <div class="callout">Edite os valores por categoria. Os grupos e metas são calculados automaticamente. Cada ano tem seu próprio orçamento.</div>
     <div class="table-wrap" style="margin-top:14px">
       <table>
@@ -62,5 +63,6 @@ export function render(container) {
       setOrcamento(ano, t.dataset.catId, Number(t.dataset.mes), num(t.value));
     }
   });
+  wireCollapse(container);
   wireExport(container, 'Orcamento', { modo: 'tabela' });
 }

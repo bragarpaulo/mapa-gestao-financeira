@@ -186,11 +186,7 @@ tr.st-ok > td { background: #f4fbf6; }
 .gauge-cap { text-align: center; margin-top: 10px; font-weight: 700; }
 .gauge-sub { text-align: center; color: var(--muted); font-size: 12px; margin-top: 2px; }
 
-/* ---- Drag & drop / seleção ---- */
-.drag-handle { cursor: grab; color: var(--muted-2); user-select: none; padding: 0 4px; }
-tr.dragging { opacity: .4; }
-tr.drop-before td { box-shadow: inset 0 2px 0 0 var(--primary); }
-tr.drop-after td { box-shadow: inset 0 -2px 0 0 var(--primary); }
+/* ---- Seleção múltipla ---- */
 .chk { width: 16px; height: 16px; accent-color: var(--primary); }
 .bulkbar { display: flex; align-items: center; gap: 10px; }
 
@@ -313,6 +309,27 @@ tr.drop-after td { box-shadow: inset 0 -2px 0 0 var(--primary); }
 #empresa-picker { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .icon-btn { width: 38px; height: 38px; border: 1px solid var(--line); background: var(--surface); border-radius: 11px; cursor: pointer; font-size: 17px; display: grid; place-items: center; transition: .15s; }
 .icon-btn:hover { background: var(--surface-2); transform: translateY(-1px); }
+.logo-home { color: var(--primary); }
+.logo-home svg { width: 20px; height: 20px; }
+
+/* ---- Cadastro (redesign) ---- */
+.cad-section { margin-bottom: 16px; }
+.card-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+.card-head .ch-h { font-size: 15px; font-weight: 800; }
+.card-head .hint { margin-top: 2px; }
+.card-head-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.table-flat { box-shadow: none; }
+.col-icon { width: 84px; }
+.col-mini { width: 30px; }
+.badge-ano { background: var(--primary); color: #fff; border-radius: 6px; padding: 2px 9px; font-size: 12px; font-weight: 700; }
+.cat-grupo { margin-top: 14px; }
+.cat-grupo:first-child { margin-top: 0; }
+.cat-grupo-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; padding: 6px 0; border-top: 1px solid var(--line); }
+.cat-grupo:first-child .cat-grupo-head { border-top: 0; }
+.cat-grupo-head strong { font-size: 13.5px; }
+.btn-icon[disabled] { opacity: .3; cursor: default; pointer-events: none; }
+.cad-import summary { cursor: pointer; font-weight: 700; padding: 4px 0; }
+.cad-import[open] summary { margin-bottom: 10px; }
 
 /* Cabeçalho de período (anos + meses), sticky com leve glassmorphism */
 #period-bar { position: sticky; top: 60px; z-index: 25; background: color-mix(in srgb, var(--surface) 82%, transparent); backdrop-filter: saturate(160%) blur(8px); border-bottom: 1px solid var(--line); padding: 9px 24px; }
@@ -440,6 +457,14 @@ tr.row-neg > td:first-child { box-shadow: inset 3px 0 0 var(--red); }
 [data-theme="dark"] .grp-row td { background: #18233b; }
 [data-theme="dark"] input, [data-theme="dark"] select, [data-theme="dark"] .money, [data-theme="dark"] .inp-flush { background: var(--surface-2); color: var(--text); border-color: var(--line); }
 [data-theme="dark"] .badge.ok { background: #143626; color: #6ee7b7; }
+/* Texto de callout legível no escuro (frase de meta no Início/Metas). */
+[data-theme="dark"] .callout { color: var(--text); border-color: var(--line); }
+[data-theme="dark"] .callout.warn { color: #fbbf24; border-color: #5a4a18; }
+/* Botões de ícone (⚙, tema, logo) mais claros/visíveis no escuro. */
+[data-theme="dark"] .icon-btn { background: var(--surface-2); border-color: #3a4a66; color: var(--text); }
+[data-theme="dark"] .icon-btn:hover { background: #28354f; border-color: var(--primary); }
+[data-theme="dark"] .icon-btn .ico-glyph { filter: brightness(0) invert(.82); }
+[data-theme="dark"] .logo-home { color: #6ea8ff; }
 
 /* ============ IMPRESSÃO ============ */
 @media print {

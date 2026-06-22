@@ -235,8 +235,8 @@ export function lucroChart(id, labels, lucro, onClick, mostrar = true) {
   return make(id, {
     type: 'bar',
     data: { labels, datasets: [
-      { label: 'Lucro', data: lucro, backgroundColor: cores, borderRadius: 4 },
-      { label: 'Tendência (3m)', data: tend, type: 'line', borderColor: '#1D4ED8', backgroundColor: 'rgba(29,78,216,.15)', tension: .3, fill: false, pointRadius: 2, borderDash: [4, 4] },
+      { label: 'Lucro', data: lucro, backgroundColor: cores, borderRadius: 4, order: 1 },
+      { label: 'Tendência (3m)', data: tend, type: 'line', order: 0, borderColor: '#1D4ED8', backgroundColor: 'rgba(29,78,216,.15)', tension: .3, fill: false, borderWidth: 2.5, pointRadius: 2, borderDash: [5, 4] },
     ] }, options: gridOpts('y'), plugins: mostrar ? [barValueLabels] : [],
   }, onClick);
 }

@@ -1,7 +1,7 @@
 // views/demonstrativo.js — renderizador compartilhado da DRE e da DFC.
 import { getState, renomearCategoria } from '../store.js';
 import { GRUPOS } from '../config.js';
-import { pageHead, thMeses, exportToolbar, wireExport } from '../ui.js';
+import { pageHead, thMeses, exportToolbar, wireExport, collapseAllBtn, wireCollapse } from '../ui.js';
 import { esc, fmtBRL0, fmtPct, anoAtivo } from '../util.js';
 
 const GTITULO = Object.fromEntries(GRUPOS.map(g => [g.id, g.titulo]));
@@ -67,7 +67,7 @@ export function renderDemonstrativo(container, { titulo, sub, result }) {
 
   container.innerHTML = `
     ${pageHead(titulo, sub)}
-    ${exportToolbar()}
+    ${exportToolbar(collapseAllBtn())}
     <div class="table-wrap">
       <table>
         <thead><tr><th style="min-width:280px">Grupo / Categoria</th>${thMeses(anoAtivo(s))}</tr></thead>
@@ -80,12 +80,7 @@ export function renderDemonstrativo(container, { titulo, sub, result }) {
     const t = ev.target;
     if (t.dataset.catId) renomearCategoria(t.dataset.catId, t.value);
   });
-  // Recolher/expandir um grupo (começa sempre expandido).
-  container.addEventListener('click', (ev) => {
-    const g = ev.target.closest('.grp-row[data-grp]'); if (!g || ev.target.closest('input')) return;
-    const gid = g.dataset.grp, fechar = !g.classList.contains('collapsed');
-    g.classList.toggle('collapsed', fechar);
-    container.querySelectorAll(`tr[data-grpcat="${CSS.escape(gid)}"]`).forEach(r => { r.style.display = fechar ? 'none' : ''; });
-  });
+  // Recolher/expandir grupos (por grupo ou todos de uma vez). Começa sempre expandido.
+  wireCollapse(container);
   wireExport(container, titulo.split(' —')[0].trim(), { modo: 'tabela' });
 }
