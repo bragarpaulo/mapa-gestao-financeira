@@ -37,7 +37,7 @@ export function render(container) {
       body += linha(c.nome, d?.orcadoTotal || 0, d?.realizadoTotal || 0, 'cat-row');
     }
   }
-  body += linha('TOTAL DE DESPESAS', gOrc, gReal, 'row-total');
+  body += linha('TOTAL DE DESPESAS', gOrc, gReal, 'row-total row-resultado');
 
   container.innerHTML = `
     ${pageHead('Orçado × Realizado — Despesas', `Orçado x Realizado (Total Ano) · ${anoAtivo(s)}`)}

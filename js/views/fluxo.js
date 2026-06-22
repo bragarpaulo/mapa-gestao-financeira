@@ -149,8 +149,8 @@ export function render(container) {
     </div>`;
 
   charts.linhaProjecao('ch-proj', proj.labels, proj.saldo);
-  charts.sparkline('ch-sp-saldo', f.saldoConta, '#1D4ED8');
-  charts.sparkline('ch-sp-ger', f.resultado, f.resultado.reduce((a, b) => a + b, 0) >= 0 ? '#16A34A' : '#EF4444');
+  charts.sparkline('ch-sp-saldo', f.saldoConta, '#ffffff');   // hero tem gradiente → branco contrasta
+  charts.sparkline('ch-sp-ger', f.resultado, '#ffffff');
   montarChartsResumo(d);
   wire(container);
 }

@@ -201,7 +201,7 @@ export function getAnosDisponiveis() { return anosDisponiveisUtil(active()); }
 export function getAnoAtivo() { const ui = active().ui; return (Array.isArray(ui.anosSel) && ui.anosSel.length) ? Math.max(...ui.anosSel.map(Number)) : Number(ui.anoAtivo); }
 export function getAnosSel() { const ui = active().ui; return (Array.isArray(ui.anosSel) && ui.anosSel.length) ? [...ui.anosSel].map(Number).sort((a, b) => a - b) : [getAnoAtivo()]; }
 function _normAnos(arr, fallback) { const a = [...new Set(Array.from(arr).map(Number))].filter(Boolean).sort((x, y) => x - y); return a.length ? a : [fallback]; }
-export function setAnosSel(arr) { update(s => { s.ui.anosSel = _normAnos(arr, anoCorrente()); s.ui.anoAtivo = Math.max(...s.ui.anosSel); }); }
+export function setAnosSel(arr, opts) { update(s => { s.ui.anosSel = _normAnos(arr, anoCorrente()); s.ui.anoAtivo = Math.max(...s.ui.anosSel); }, opts); }
 export function toggleAno(ano) { ano = Number(ano); update(s => { const set = new Set((s.ui.anosSel || []).map(Number)); set.has(ano) ? set.delete(ano) : set.add(ano); s.ui.anosSel = _normAnos([...set], ano); s.ui.anoAtivo = Math.max(...s.ui.anosSel); }); }
 export function setAnoAtivo(ano) { update(s => { s.ui.anoAtivo = Number(ano); s.ui.anosSel = [Number(ano)]; }); }
 export function getTema() { return active().ui.tema || 'light'; }

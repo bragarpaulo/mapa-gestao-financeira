@@ -142,6 +142,11 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 .row-entrada td { font-weight: 800; background: var(--green-bg); color: var(--green-d); }
 .row-entrada td:first-child { box-shadow: inset 3px 0 0 var(--green); }
 [data-theme="dark"] .row-entrada td { background: #14361f; color: #6ee7b7; }
+/* Linha de RESULTADO final (Lucro Líquido no DRE/DFC, TOTAIS no Meta×Real) — destaque forte */
+.row-resultado td { font-size: 14.5px; font-weight: 800; background: var(--surface-2); border-top: 2px solid var(--primary); border-bottom: 2px solid var(--primary); }
+.row-resultado td:first-child { box-shadow: inset 4px 0 0 var(--primary); }
+[data-theme="dark"] .row-resultado td { background: #18233b; }
+
 /* Grupos recolhíveis no DRE/DFC (começam expandidos) */
 .grp-row[data-grp] { cursor: pointer; user-select: none; }
 .grp-caret { display: inline-block; font-size: 10px; transition: transform .15s; margin-right: 2px; }
@@ -246,7 +251,7 @@ tr.drop-after td { box-shadow: inset 0 -2px 0 0 var(--primary); }
 @media (max-width: 768px) { #content .toolbar.sticky-tools { padding: 10px 16px; margin: 0 -16px 14px; } }
 
 /* Bloco "Total do Ano" do Dashboard (KPIs grandes, sempre visível) */
-.kpis-year { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)) !important; }
+.kpis-year { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)) !important; margin-bottom: 22px; padding-bottom: 18px; border-bottom: 1px solid var(--line); }
 .kpis-year .kpi { background: linear-gradient(150deg, var(--surface) 0%, var(--surface-2) 100%); }
 .kpis-year .kpi-value { font-size: 26px; }
 

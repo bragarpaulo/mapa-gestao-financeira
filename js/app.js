@@ -2,7 +2,7 @@
 import {
   getState, subscribe, resetDemo, clearAll,
   getCompanies, getActiveId, setActiveEmpresa, addEmpresa, removerEmpresa, setEmpresaCampo,
-  getAnosDisponiveis, getAnosSel, toggleAno, setPeriodoMeses,
+  getAnosDisponiveis, getAnosSel, toggleAno, setAnosSel, setPeriodoMeses,
   getTema, setTema,
   initCloud,
 } from './store.js';
@@ -64,6 +64,8 @@ topRightEl.addEventListener('click', (e) => { if (e.target.closest('#theme-toggl
 
 // ---- Cabeçalho de PERÍODO global (anos + meses em chips), sticky abaixo do topbar ----
 const SEM_PERIODO = new Set(['cadastro']);   // rotas que não usam filtro de período
+const MULTI_ANO = new Set(['dashboard', 'inicio']);   // só estas somam/comparam vários anos
+const podeMultiAno = (route) => MULTI_ANO.has(route);
 function renderPeriodBar(route) {
   if (SEM_PERIODO.has(route)) { periodBarEl.style.display = 'none'; periodBarEl.innerHTML = ''; return; }
   periodBarEl.style.display = '';
@@ -108,7 +110,12 @@ document.addEventListener('mouseup', () => {
   else setPeriodoMeses([_anchor]);
   _anchor = null; _hover = null; _dragged = false; _ctrl = false;
 });
-periodBarEl.addEventListener('click', (e) => { const a = e.target.closest('[data-ano]'); if (a) toggleAno(a.dataset.ano); });
+periodBarEl.addEventListener('click', (e) => {
+  const a = e.target.closest('[data-ano]'); if (!a) return;
+  // Em relatórios de 1 ano (DRE/DFC/Fluxo/etc.) o chip seleciona só aquele ano; no Dashboard/Início soma vários.
+  if (podeMultiAno(currentRoute())) toggleAno(a.dataset.ano);
+  else setAnosSel([a.dataset.ano]);
+});
 
 // (Config da empresa abre direto a aba Cadastro — sem modal.)
 
@@ -124,6 +131,8 @@ function renderView() {
   charts.destroyAll();
   closeNav();
   const route = currentRoute();
+  // Relatório de 1 ano: se vários anos estavam selecionados (vindo do Dashboard), colapsa p/ o ano primário.
+  if (!podeMultiAno(route) && getAnosSel().length > 1) setAnosSel([Math.max(...getAnosSel())], { silent: true });
   const sameRoute = route === lastRoute;
   const scEl = document.scrollingElement || document.documentElement;
   const sc = scEl.scrollTop;

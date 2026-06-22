@@ -45,13 +45,13 @@ export function renderDemonstrativo(container, { titulo, sub, result }) {
     { type: 'grupo', gid: 'financeiro' },
     { type: 'subtotal', label: '(=) LUCRO ANTES DO IR', arr: r.lucroAntesIR },
     { type: 'grupo', gid: 'impostos_ir' },
-    { type: 'subtotal', label: '(=) LUCRO LÍQUIDO', arr: r.lucroLiquido },
+    { type: 'subtotal', label: '(=) LUCRO LÍQUIDO', arr: r.lucroLiquido, final: true },
   ];
 
   let body = '';
   for (const item of seq) {
     if (item.type === 'entrada') body += linha(item.label, item.arr, { cls: 'row-entrada', sign: false });
-    else if (item.type === 'subtotal') body += linha(item.label, item.arr, { cls: 'row-total' });
+    else if (item.type === 'subtotal') body += linha(item.label, item.arr, { cls: item.final ? 'row-total row-resultado' : 'row-total' });
     else if (item.type === 'grupo') {
       const tot = r.grupos[item.gid].total;
       const tneg = tot.reduce((a, b) => a + (typeof b === 'number' ? b : 0), 0) < 0;

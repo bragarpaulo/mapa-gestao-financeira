@@ -94,5 +94,5 @@ export function render(container) {
       <a class="btn" href="#fluxo">💵 Fluxo de Caixa</a>
     </div>`;
 
-  charts.sparkline('ini-spark', f.saldoConta, '#1D4ED8');
+  charts.sparkline('ini-spark', f.saldoConta, '#ffffff');   // branco p/ contrastar no hero (gradiente)
 }

@@ -25,7 +25,7 @@ export function render(container) {
     </tr>`;
   }).join('') || `<tr><td colspan="5" class="empty">Cadastre canais e metas no Cadastro.</td></tr>`;
   const difTot = d.totalRealYTD - d.totalMetaYTD;
-  const totalRow = `<tr class="row-total"><td>TOTAL</td><td class="num">${fmtBRL0(d.totalMetaYTD)}</td><td class="num">${fmtBRL0(d.totalRealYTD)}</td>
+  const totalRow = `<tr class="row-total row-resultado"><td>TOTAL</td><td class="num">${fmtBRL0(d.totalMetaYTD)}</td><td class="num">${fmtBRL0(d.totalRealYTD)}</td>
     <td class="num ${difTot >= 0 ? 'pos' : 'neg'}">${fmtBRL0(difTot)}</td><td class="num">${d.pctYTD === '' ? '—' : fmtPct(d.pctYTD)}</td></tr>`;
 
   let detalhe = '';
@@ -36,7 +36,7 @@ export function render(container) {
   }
   // Totais mês a mês
   detalhe += `<tr class="row-total"><td>TOTAL — Meta</td>${metaMes.map(v => `<td class="num">${fmtBRL0(v)}</td>`).join('')}<td class="num"><strong>${fmtBRL0(tot(metaMes))}</strong></td></tr>`;
-  detalhe += `<tr class="row-total"><td>TOTAL — Realizado</td>${realMes.map(v => `<td class="num">${fmtBRL0(v)}</td>`).join('')}<td class="num"><strong>${fmtBRL0(tot(realMes))}</strong></td></tr>`;
+  detalhe += `<tr class="row-total row-resultado"><td>TOTAL — Realizado</td>${realMes.map(v => `<td class="num">${fmtBRL0(v)}</td>`).join('')}<td class="num"><strong>${fmtBRL0(tot(realMes))}</strong></td></tr>`;
 
   container.innerHTML = `
     ${pageHead('Meta de Receita × Realizado', `Atingimento acumulado até ${d.mesLabel} · ${ano}`)}
