@@ -224,13 +224,76 @@ tr.drop-after td { box-shadow: inset 0 -2px 0 0 var(--primary); }
   .hero { padding: 20px; } .hero h1 { font-size: 22px; }
 }
 
+/* ============ FASE 7 ============ */
+/* Mini-legenda de cores de status (Lançamento de Vendas/Despesas) */
+.status-legend { display: flex; flex-wrap: wrap; gap: 8px; margin: -4px 0 12px; }
+.status-pill { font-size: 11.5px; font-weight: 700; padding: 4px 11px; border-radius: 999px; border: 1px solid var(--line); white-space: nowrap; }
+.status-pill.st-ok   { background: var(--green-bg);  color: #166534; border-color: #bbf7d0; }
+.status-pill.st-bad  { background: var(--red-bg);    color: #991b1b; border-color: #fecaca; }
+.status-pill.st-warn { background: var(--amber-bg);  color: #92400e; border-color: #fde68a; }
+.status-pill.st-info { background: var(--blue-bg);   color: #1e40af; border-color: #bfdbfe; }
+
+/* Toolbar sticky (Dashboard — fica logo abaixo do #topbar) */
+#content .toolbar.sticky-tools { position: sticky; top: 60px; z-index: 25; background: var(--bg); padding: 10px 24px; margin: 0 -24px 14px; border-bottom: 1px solid var(--line); }
+@media (max-width: 768px) { #content .toolbar.sticky-tools { padding: 10px 16px; margin: 0 -16px 14px; } }
+
+/* Bloco "Total do Ano" do Dashboard (KPIs grandes, sempre visível) */
+.kpis-year { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)) !important; }
+.kpis-year .kpi { background: linear-gradient(150deg, var(--surface) 0%, var(--surface-2) 100%); }
+.kpis-year .kpi-value { font-size: 26px; }
+
+/* Linha extra "TOTAL DO ANO" abaixo do resumo dos gráficos */
+.chart-summary-year { background: var(--surface-2); border-radius: 10px; padding: 9px 12px; margin-top: 8px; border-top: none !important; font-weight: 700; }
+.chart-summary-year span { font-size: 12px; }
+
+/* Marcador 🔁 ao lado da data quando o lançamento é recorrente */
+.rec-mark { display: inline-block; margin-left: 5px; font-size: 12px; cursor: help; }
+
+/* Célula com input + botão "+" embutido (cliente nas Vendas / recebedor nas Despesas) */
+.cell-with-add { display: flex; align-items: center; gap: 4px; }
+.cell-with-add .inp-flush { flex: 1; }
+
+/* Diálogo de Lançamento Recorrente (<dialog>) */
+.dlg { border: none; border-radius: 16px; padding: 0; box-shadow: 0 25px 50px rgba(15,23,42,.25); max-width: 560px; width: 90%; }
+.dlg::backdrop { background: rgba(15,23,42,.45); }
+.dlg form { padding: 22px; }
+.dlg h3 { margin: 0 0 14px; font-size: 17px; }
+.dlg-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.dlg-grid label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; font-weight: 600; color: var(--muted); }
+.dlg-grid input, .dlg-grid select { padding: 7px 9px; border: 1px solid var(--line); border-radius: 8px; font: inherit; font-size: 14px; color: var(--text); background: #fff; }
+.dlg-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+.dlg-actions button { padding: 8px 14px; border: 1px solid var(--line); background: var(--surface); border-radius: 8px; font-weight: 600; cursor: pointer; }
+.dlg-actions button.btn-primary { background: var(--primary); color: #fff; border-color: var(--primary); }
+@media (max-width: 520px) { .dlg-grid { grid-template-columns: 1fr; } }
+
+/* ===== Refresh do Fluxo de Caixa ===== */
+.fluxo-hero { display: grid; grid-template-columns: minmax(260px, 1fr) 2fr; gap: 16px; padding: 22px; border-radius: 22px; background: var(--grad-primary); color: #fff; box-shadow: var(--shadow-lg); margin-bottom: 16px; }
+.fluxo-hero-main { display: flex; flex-direction: column; justify-content: center; }
+.fluxo-hero-label { font-size: 12.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; opacity: .85; }
+.fluxo-hero-value { font-size: 36px; font-weight: 800; letter-spacing: -.02em; margin-top: 4px; }
+.fluxo-hero-meta { margin-top: 8px; display: flex; align-items: center; gap: 8px; opacity: .92; }
+.fluxo-hero-meta .hint { color: rgba(255,255,255,.78); }
+.fluxo-hero-sparks { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.fluxo-hero-spark { background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.22); border-radius: 14px; padding: 12px; backdrop-filter: blur(4px); }
+.fluxo-hero-spark-label { font-size: 11.5px; font-weight: 700; letter-spacing: .03em; opacity: .92; }
+.fluxo-hero-spark-wrap { position: relative; height: 64px; margin-top: 6px; }
+@media (max-width: 880px) { .fluxo-hero { grid-template-columns: 1fr; } .fluxo-hero-value { font-size: 30px; } }
+
+/* Setas de tendência (delta) — usadas no hero do Fluxo */
+.kpi-delta { display: inline-flex; align-items: center; gap: 4px; font-weight: 700; font-size: 12.5px; padding: 3px 8px; border-radius: 999px; }
+.kpi-delta.up   { background: rgba(34,197,94,.18);  color: #f0fdf4; }
+.kpi-delta.down { background: rgba(239,68,68,.22);  color: #fef2f2; }
+.kpi-delta.flat { background: rgba(255,255,255,.18); color: #fff; }
+
 /* ============ IMPRESSÃO ============ */
 @media print {
-  #sidebar, #sidebar-overlay, #topbar, .toolbar, .no-print, .seg, [data-action], [data-export], .chips { display: none !important; }
+  #sidebar, #sidebar-overlay, #topbar, .toolbar, .no-print, .seg, [data-action], [data-export], .chips, .status-legend, .dlg, .fluxo-hero-sparks { display: none !important; }
   #layout, #main { display: block; }
   #content { padding: 0 !important; }
   .table-wrap, .tbl-frozen { max-height: none !important; overflow: visible !important; box-shadow: none !important; border: 1px solid #ccc; }
   .card { box-shadow: none !important; break-inside: avoid; }
   body { background: #fff; }
   th { position: static !important; }
+  .fluxo-hero { background: #f1f5f9 !important; color: var(--text) !important; box-shadow: none !important; }
+  .fluxo-hero-meta .hint, .kpi-delta { color: var(--text) !important; }
 }

@@ -61,6 +61,7 @@ function migrarCompany(c) {
   if (!Array.isArray(c.despesas)) c.despesas = [];
   if (!c.plataformas) c.plataformas = { disponiveis: [], aReceber: [] };
   if (!Array.isArray(c.fornecedores)) c.fornecedores = [];
+  if (!Array.isArray(c.clientes)) c.clientes = [];
 
   // vendas: garantir contaId (banco de recebimento)
   c.vendas.forEach(v => { if (v.contaId === undefined) v.contaId = ''; });
@@ -88,6 +89,7 @@ function emptyCompany(ano = anoCorrente(), nome = '') {
     empresa: { nome, cnpj: '', anos: [ano], dataInicio: '' },
     contas: [], canais: [], categorias: freshCategorias(), receitaCategorias: freshReceitaCats(),
     vendas: [], despesas: [], orcamento: {}, plataformas: { disponiveis: [], aReceber: [] },
+    fornecedores: [], clientes: [],
     ui: defaultUI(ano),
   });
 }
@@ -123,7 +125,9 @@ export function subscribe(fn) { listeners.add(fn); return () => listeners.delete
 
 function active() { return root.companies.find(c => c.id === root.activeId) || root.companies[0]; }
 export function getState() { return active(); }
-export function update(mutator) { mutator(active()); save(); emit(); }
+// `silent: true` → salva (LS + nuvem) mas NÃO re-renderiza a UI (evita perder foco em
+// inputs sendo digitados; ver fix raiz dos bugs 1/2/9 da Fase 7).
+export function update(mutator, { silent = false } = {}) { mutator(active()); save(); if (!silent) emit(); }
 
 // ---- Nuvem ---------------------------------------------------------------
 let _cloudTimer = null, _lastLocalSave = 0;
@@ -219,22 +223,24 @@ function moveById(arr, fromId, toId) {
 // ---- CRUD: Vendas --------------------------------------------------------
 export function novaVenda(base = {}) {
   const s = active();
-  return { id: uid('v'), dataVenda: '', pedido: '', canalId: s.canais[0]?.id || '', categoriaReceitaId: s.receitaCategorias[0]?.id || 'rec_bruta', produto: '', cliente: '', valor: 0, dataVencimento: '', dataRecebimento: '', contaId: s.contas[0]?.id || '', obs: '', ...base };
+  return { id: uid('v'), dataVenda: '', pedido: '', canalId: s.canais[0]?.id || '', categoriaReceitaId: s.receitaCategorias[0]?.id || 'rec_bruta', produto: '', cliente: '', valor: 0, dataVencimento: '', dataRecebimento: '', contaId: s.contas[0]?.id || '', obs: '', recorrenciaId: '', recorrenciaPeriodo: '', recorrenciaFim: '', ...base };
 }
 export function addVenda(base) { update(s => s.vendas.push(novaVenda(base))); }
-export function duplicarVenda(id) { update(s => { const i = s.vendas.findIndex(v => v.id === id); if (i >= 0) s.vendas.splice(i + 1, 0, { ...s.vendas[i], id: uid('v') }); }); }
+export function addVendasLote(lista) { update(s => { for (const v of lista) s.vendas.push(novaVenda(v)); }); }
+export function duplicarVenda(id) { update(s => { const i = s.vendas.findIndex(v => v.id === id); if (i >= 0) s.vendas.splice(i + 1, 0, { ...s.vendas[i], id: uid('v'), recorrenciaId: '', recorrenciaPeriodo: '', recorrenciaFim: '' }); }); }
 export function removerVenda(id) { update(s => { s.vendas = s.vendas.filter(v => v.id !== id); }); }
-export function setVendaCampo(id, campo, valor) { update(s => { const v = s.vendas.find(x => x.id === id); if (v) v[campo] = valor; }); }
+export function setVendaCampo(id, campo, valor, opts) { update(s => { const v = s.vendas.find(x => x.id === id); if (v) v[campo] = valor; }, opts); }
 
 // ---- CRUD: Despesas ------------------------------------------------------
 export function novaDespesa(base = {}) {
   const s = active();
-  return { id: uid('d'), dataVencimento: '', mesCompetencia: '', descricao: '', categoriaId: s.categorias[0]?.id || '', valor: 0, fornecedor: '', contaId: s.contas[0]?.id || '', formaPagamento: 'PIX', dataPagamentoReal: '', obs: '', ...base };
+  return { id: uid('d'), dataVencimento: '', mesCompetencia: '', descricao: '', categoriaId: s.categorias[0]?.id || '', valor: 0, fornecedor: '', contaId: s.contas[0]?.id || '', formaPagamento: 'PIX', dataPagamentoReal: '', obs: '', recorrenciaId: '', recorrenciaPeriodo: '', recorrenciaFim: '', ...base };
 }
 export function addDespesa(base) { update(s => s.despesas.push(novaDespesa(base))); }
-export function duplicarDespesa(id) { update(s => { const i = s.despesas.findIndex(d => d.id === id); if (i >= 0) s.despesas.splice(i + 1, 0, { ...s.despesas[i], id: uid('d') }); }); }
+export function addDespesasLote(lista) { update(s => { for (const d of lista) s.despesas.push(novaDespesa(d)); }); }
+export function duplicarDespesa(id) { update(s => { const i = s.despesas.findIndex(d => d.id === id); if (i >= 0) s.despesas.splice(i + 1, 0, { ...s.despesas[i], id: uid('d'), recorrenciaId: '', recorrenciaPeriodo: '', recorrenciaFim: '' }); }); }
 export function removerDespesa(id) { update(s => { s.despesas = s.despesas.filter(d => d.id !== id); }); }
-export function setDespesaCampo(id, campo, valor) { update(s => { const d = s.despesas.find(x => x.id === id); if (d) d[campo] = valor; }); }
+export function setDespesaCampo(id, campo, valor, opts) { update(s => { const d = s.despesas.find(x => x.id === id); if (d) d[campo] = valor; }, opts); }
 
 // ---- CRUD: Canais (+ metas por ano, reorder, multi-delete) ---------------
 export function addCanal() { update(s => s.canais.push({ id: uid('ch'), nome: 'Novo Canal', metas: {} })); }
@@ -245,11 +251,28 @@ export function removerCanais(ids) { const set = new Set(ids); update(s => { s.c
 export function reordenarCanais(fromId, toId) { update(s => moveById(s.canais, fromId, toId)); }
 
 // ---- CRUD: Recebedores / Fornecedores ------------------------------------
+const normNome = (s) => String(s || '').trim().normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 export function addFornecedor() { update(s => s.fornecedores.push({ id: uid('forn'), nome: 'Novo recebedor' })); }
 export function renomearFornecedor(id, nome) { update(s => { const f = s.fornecedores.find(x => x.id === id); if (f) f.nome = nome; }); }
 export function removerFornecedor(id) { update(s => { s.fornecedores = s.fornecedores.filter(f => f.id !== id); }); }
 export function removerFornecedores(ids) { const set = new Set(ids); update(s => { s.fornecedores = s.fornecedores.filter(f => !set.has(f.id)); }); }
 export function reordenarFornecedores(fromId, toId) { update(s => moveById(s.fornecedores, fromId, toId)); }
+// Auto-cadastra um recebedor pelo nome se ele não existir (case-insensitive, sem acento).
+export function ensureFornecedor(nome) {
+  const n = String(nome || '').trim(); if (!n) return;
+  update(s => { if (!s.fornecedores.some(f => normNome(f.nome) === normNome(n))) s.fornecedores.push({ id: uid('forn'), nome: n }); });
+}
+
+// ---- CRUD: Clientes (vendas) ---------------------------------------------
+export function addCliente() { update(s => s.clientes.push({ id: uid('cli'), nome: 'Novo cliente' })); }
+export function renomearCliente(id, nome) { update(s => { const c = s.clientes.find(x => x.id === id); if (c) c.nome = nome; }); }
+export function removerCliente(id) { update(s => { s.clientes = s.clientes.filter(c => c.id !== id); }); }
+export function removerClientes(ids) { const set = new Set(ids); update(s => { s.clientes = s.clientes.filter(c => !set.has(c.id)); }); }
+export function reordenarClientes(fromId, toId) { update(s => moveById(s.clientes, fromId, toId)); }
+export function ensureCliente(nome) {
+  const n = String(nome || '').trim(); if (!n) return;
+  update(s => { if (!s.clientes.some(c => normNome(c.nome) === normNome(n))) s.clientes.push({ id: uid('cli'), nome: n }); });
+}
 
 // ---- CRUD: Categorias ----------------------------------------------------
 export function renomearCategoria(id, nome) { update(s => { const c = s.categorias.find(x => x.id === id); if (c) c.nome = nome; }); }

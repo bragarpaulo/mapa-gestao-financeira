@@ -2,7 +2,7 @@
 import { getState, addPlataforma, setPlataformaCampo, removerPlataforma, setFluxoMesReceber } from '../store.js';
 import { calcFluxo, contasReceberPorCanal, calcDashboard, calcAging, calcProjecao } from '../calc.js';
 import { MESES } from '../config.js';
-import { pageHead, thMeses, moneyInput, exportToolbar, wireExport } from '../ui.js';
+import { pageHead, thMeses, moneyInput, exportToolbar, wireExport, delta } from '../ui.js';
 import { esc, num, fmtBRL0, anoAtivo } from '../util.js';
 import * as charts from '../charts.js';
 import { kpisResumoHtml, chartsResumoHtml, montarChartsResumo } from './resumo.js';
@@ -77,25 +77,47 @@ export function render(container) {
   const crTotal = cr.reduce((a, x) => a + x.valor, 0);
   const mesOpts = MESES.map((m, i) => `<option value="${i}" ${mesReceber === i ? 'selected' : ''}>${m}/${ano}</option>`).join('');
 
+  const mesAtual = Math.min(new Date().getMonth(), 11);
+  const saldoAnt = mesAtual === 0 ? f.saldoInicialAno : f.saldoConta[mesAtual - 1];
+  const heroDelta = delta(d.saldoAtual, saldoAnt);
+
   container.innerHTML = `
     ${pageHead('Fluxo de Caixa', `Resumo, projeção e previsões · ${ano}`)}
     ${exportToolbar()}
 
-    <div class="section-title" style="margin-top:0">Visão de Caixa</div>
+    <div class="fluxo-hero">
+      <div class="fluxo-hero-main">
+        <div class="fluxo-hero-label">💰 Saldo atual em conta</div>
+        <div class="fluxo-hero-value">${fmtBRL0(d.saldoAtual)}</div>
+        <div class="fluxo-hero-meta">${heroDelta} <span class="hint">vs mês anterior</span></div>
+      </div>
+      <div class="fluxo-hero-sparks">
+        <div class="fluxo-hero-spark">
+          <div class="fluxo-hero-spark-label">📈 Saldo ao longo do ano</div>
+          <div class="fluxo-hero-spark-wrap"><canvas id="ch-sp-saldo"></canvas></div>
+        </div>
+        <div class="fluxo-hero-spark">
+          <div class="fluxo-hero-spark-label">💵 Geração de caixa</div>
+          <div class="fluxo-hero-spark-wrap"><canvas id="ch-sp-ger"></canvas></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-title" style="margin-top:18px">📊 Visão de Caixa</div>
     ${kpisResumoHtml(d)}
-    <div class="section-title">Gráficos</div>
+    <div class="section-title">📉 Gráficos</div>
     ${chartsResumoHtml(d)}
 
-    <div class="section-title">Projeção de caixa (próximos 30 dias)</div>
+    <div class="section-title">🔮 Projeção de caixa (próximos 30 dias)</div>
     <div class="card chart-box"><div class="chart-canvas-wrap"><canvas id="ch-proj"></canvas></div></div>
 
-    <div class="section-title">Previsão por prazo</div>
+    <div class="section-title">⏱ Previsão por prazo</div>
     <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(300px,1fr))">
       ${agingTable('Entradas a receber', ag.entradas, ag.buckets, 'Recebido no mês')}
       ${agingTable('Saídas a pagar', ag.saidas, ag.buckets, 'Pago no mês')}
     </div>
 
-    <div class="section-title">Fluxo mensal (${ano})</div>
+    <div class="section-title">📅 Fluxo mensal (${ano})</div>
     <div class="table-wrap">
       <table><thead><tr><th style="min-width:200px">Fluxo de Caixa</th>${thMeses(ano)}</tr></thead><tbody>${body}</tbody></table>
     </div>
@@ -127,6 +149,8 @@ export function render(container) {
     </div>`;
 
   charts.linhaProjecao('ch-proj', proj.labels, proj.saldo);
+  charts.sparkline('ch-sp-saldo', f.saldoConta, '#1D4ED8');
+  charts.sparkline('ch-sp-ger', f.resultado, f.resultado.reduce((a, b) => a + b, 0) >= 0 ? '#16A34A' : '#EF4444');
   montarChartsResumo(d);
   wire(container);
   wireExport(container, 'Fluxo-de-Caixa');

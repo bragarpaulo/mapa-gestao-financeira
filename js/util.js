@@ -51,6 +51,22 @@ export function fmtData(iso) {
   return `${dd}/${mm}/${dt.getFullYear()}`;
 }
 
+// Inversa de parseISO: Date → "YYYY-MM-DD".
+export function formatISO(dt) {
+  if (!dt || !(dt instanceof Date) || isNaN(dt)) return '';
+  return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+}
+
+// Adiciona N meses preservando o dia (com clamp ao último dia do mês destino).
+export function addMeses(iso, n) {
+  const d = parseISO(iso); if (!d) return '';
+  const day = d.getDate();
+  const novo = new Date(d.getFullYear(), d.getMonth() + n, 1);
+  const ultimoDia = new Date(novo.getFullYear(), novo.getMonth() + 1, 0).getDate();
+  novo.setDate(Math.min(day, ultimoDia));
+  return formatISO(novo);
+}
+
 // "hoje" a meia-noite local (status comparam contra isto, como o TODAY() da planilha).
 export function hoje() {
   const d = new Date();

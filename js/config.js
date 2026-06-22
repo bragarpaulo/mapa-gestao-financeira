@@ -64,6 +64,16 @@ export const DEFAULT_RECEITA_CATEGORIES = [
 
 export const FORMAS_PAGAMENTO = ['PIX', 'Boleto', 'Cartão de Crédito', 'Em Espécie', 'Outros'];
 
+// Periodicidades de recorrência para lançamentos (vendas e despesas).
+// Valor numérico = quantos meses entre uma parcela e a próxima.
+export const PERIODOS_RECORRENCIA = [
+  { id: 'mensal',     nome: 'Mensal',     meses: 1 },
+  { id: 'bimestral',  nome: 'Bimestral',  meses: 2 },
+  { id: 'trimestral', nome: 'Trimestral', meses: 3 },
+  { id: 'semestral',  nome: 'Semestral',  meses: 6 },
+  { id: 'anual',      nome: 'Anual',      meses: 12 },
+];
+
 // Rótulos de status (idênticos à planilha).
 export const STATUS_VENDA = {
   CONCLUIDO: 'Concluído',

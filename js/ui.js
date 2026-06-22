@@ -82,6 +82,22 @@ export function eyeToggle(id, on, label = 'Valores') {
   return `<button class="chart-eye no-print ${on ? '' : 'off'}" data-eye="${id}" aria-pressed="${on}" title="${on ? 'Ocultar' : 'Mostrar'} ${label.toLowerCase()} no gráfico">${on ? '👁' : '🙈'} ${esc(label)}</button>`;
 }
 
+// Mini-legenda de cores de status (vendas/despesas). Usa as mesmas classes st-* das linhas.
+export function statusLegend(itens) {
+  return `<div class="status-legend no-print">` + itens.map(i => `<span class="status-pill ${i.cls}">${esc(i.label)}</span>`).join('') + `</div>`;
+}
+
+// Indicador de tendência (atual vs anterior). Retorna HTML pronto.
+// Ex.: delta(120, 100) → "<span class="kpi-delta up">↑ 20,0%</span>"
+export function delta(atual, anterior) {
+  const a = Number(anterior) || 0, n = Number(atual) || 0;
+  if (a === 0) return '';
+  const p = (n - a) / Math.abs(a);
+  const cls = p > 0 ? 'up' : p < 0 ? 'down' : 'flat';
+  const seta = p > 0 ? '↑' : p < 0 ? '↓' : '→';
+  return `<span class="kpi-delta ${cls}">${seta} ${fmtPct(Math.abs(p))}</span>`;
+}
+
 // Segmented control (Tabela | Pizza | Barras).
 export function seg(name, opts, active) {
   return `<div class="seg" data-seg="${name}">` + opts.map(o => `<button class="${o.val === active ? 'active' : ''}" data-seg-val="${o.val}">${esc(o.label)}</button>`).join('') + `</div>`;
@@ -148,30 +164,39 @@ async function exportarPng(container, filename) {
   baixar(canvas.toDataURL('image/png'), filename + '.png');
 }
 
-async function exportarPdf(container, filename) {
+async function exportarPdf(container, filename, { fitOnePage = false } = {}) {
   const canvas = await capturar(container); if (!canvas) return;
   const jspdf = window.jspdf && window.jspdf.jsPDF;
   if (!jspdf) { alert('Biblioteca de PDF não carregou (sem internet?).'); return; }
-  const landscape = canvas.width > canvas.height * 1.25;   // tabela larga → paisagem
+  const landscape = canvas.width > canvas.height * 1.25 || fitOnePage;   // tabela larga → paisagem; fit→sempre paisagem
   const pdf = new jspdf({ orientation: landscape ? 'l' : 'p', unit: 'pt', format: 'a4' });
   const pw = pdf.internal.pageSize.getWidth(), ph = pdf.internal.pageSize.getHeight();
-  const m = 20, iw = pw - m * 2, ih = canvas.height * iw / canvas.width;
+  const m = 20;
   const img = canvas.toDataURL('image/png');
-  let heightLeft = ih, position = m;
-  pdf.addImage(img, 'PNG', m, position, iw, ih);
-  heightLeft -= (ph - m * 2);
-  while (heightLeft > 0) { position = m - (ih - heightLeft); pdf.addPage(); pdf.addImage(img, 'PNG', m, position, iw, ih); heightLeft -= (ph - m * 2); }
+  if (fitOnePage) {
+    // Escala a imagem inteira para caber em uma única página A4 paisagem (sem cortar).
+    const ratio = Math.min((pw - m * 2) / canvas.width, (ph - m * 2) / canvas.height);
+    const w = canvas.width * ratio, h = canvas.height * ratio;
+    const x = (pw - w) / 2, y = (ph - h) / 2;
+    pdf.addImage(img, 'PNG', x, y, w, h);
+  } else {
+    const iw = pw - m * 2, ih = canvas.height * iw / canvas.width;
+    let heightLeft = ih, position = m;
+    pdf.addImage(img, 'PNG', m, position, iw, ih);
+    heightLeft -= (ph - m * 2);
+    while (heightLeft > 0) { position = m - (ih - heightLeft); pdf.addPage(); pdf.addImage(img, 'PNG', m, position, iw, ih); heightLeft -= (ph - m * 2); }
+  }
   pdf.save(filename + '.pdf');
 }
 
-export function wireExport(container, filename = 'gpr') {
+export function wireExport(container, filename = 'gpr', opts = {}) {
   container.addEventListener('click', async (e) => {
     const b = e.target.closest('[data-export]'); if (!b) return;
     const tipo = b.dataset.export;
     if (tipo === 'print') { window.print(); return; }
     if (tipo === 'csv') { tabelaParaCsv(container, filename); return; }
     const txt = b.textContent; b.textContent = '...'; b.disabled = true;
-    try { if (tipo === 'png') await exportarPng(container, filename); else if (tipo === 'pdf') await exportarPdf(container, filename); }
+    try { if (tipo === 'png') await exportarPng(container, filename); else if (tipo === 'pdf') await exportarPdf(container, filename, opts); }
     catch (err) { console.error(err); alert('Falha ao exportar: ' + err.message); }
     finally { b.textContent = txt; b.disabled = false; }
   });

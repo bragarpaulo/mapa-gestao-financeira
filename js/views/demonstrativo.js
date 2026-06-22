@@ -76,5 +76,5 @@ export function renderDemonstrativo(container, { titulo, sub, result }) {
     const t = ev.target;
     if (t.dataset.catId) renomearCategoria(t.dataset.catId, t.value);
   });
-  wireExport(container, titulo.split(' —')[0].trim());
+  wireExport(container, titulo.split(' —')[0].trim(), { fitOnePage: true });
 }

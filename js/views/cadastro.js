@@ -5,6 +5,7 @@ import {
   addCanal, renomearCanal, setCanalMeta, removerCanal, removerCanais, reordenarCanais,
   renomearCategoria, addCategoria, removerCategoria, removerCategorias, reordenarCategorias,
   addFornecedor, renomearFornecedor, removerFornecedor, removerFornecedores, reordenarFornecedores,
+  addCliente, renomearCliente, removerCliente, removerClientes, reordenarClientes,
   addAno, removerAno, setAnoAtivo, GRUPOS,
 } from '../store.js';
 import { TIPOS_CONTA, MESES } from '../config.js';
@@ -77,6 +78,14 @@ export function render(container) {
       <td class="nowrap" style="width:120px">${mover(f.id, 'fornecedores')}<button class="btn btn-sm btn-icon" data-action="rm-forn" data-id="${f.id}">🗑</button></td>
     </tr>`).join('') || `<tr><td colspan="4" class="empty">Nenhum recebedor cadastrado.</td></tr>`;
 
+  // ---- Clientes (vendas) ----
+  const clientesRows = s.clientes.map(c => `
+    <tr data-row="${c.id}" data-tbl="clientes">
+      ${handle(c.id, 'clientes')}${chk(c.id, 'clientes')}
+      <td><input class="inp-flush" data-cli-id="${c.id}" value="${esc(c.nome)}"></td>
+      <td class="nowrap" style="width:120px">${mover(c.id, 'clientes')}<button class="btn btn-sm btn-icon" data-action="rm-cli" data-id="${c.id}">🗑</button></td>
+    </tr>`).join('') || `<tr><td colspan="4" class="empty">Nenhum cliente cadastrado.</td></tr>`;
+
   container.innerHTML = `
     ${pageHead('Cadastro', 'Empresa, anos, contas, canais e categorias. Arraste pela alça ⠿ para reordenar; marque para excluir vários.')}
 
@@ -135,6 +144,14 @@ export function render(container) {
     <div class="hint" style="margin-bottom:8px">Aparecem como sugestão no campo "Recebedor" das Despesas.</div>
     <div class="table-wrap"><table><tbody>${fornecedoresRows}</tbody></table></div>
 
+    <div class="flex" style="justify-content:space-between;margin:26px 0 10px;flex-wrap:wrap;gap:8px">
+      <div class="section-title" style="margin:0">Clientes (Vendas)</div>
+      <div class="flex"><button class="btn btn-sm" data-action="del-sel" data-sel="clientes">Excluir selecionados</button>
+      <button class="btn btn-primary btn-sm" data-action="add-cli">+ Adicionar cliente</button></div>
+    </div>
+    <div class="hint" style="margin-bottom:8px">Aparecem como sugestão no campo "Cliente" das Vendas. Ao digitar um nome novo na tabela, é cadastrado automaticamente.</div>
+    <div class="table-wrap"><table><tbody>${clientesRows}</tbody></table></div>
+
     <div class="section-title">Categorias de despesa (renomear / reordenar / excluir)</div>
     <div class="hint" style="margin-bottom:8px">Renomear/reordenar não quebra os cálculos: tudo usa um ID interno estável.</div>
     ${catGrupos}`;
@@ -146,6 +163,7 @@ function doReorder(tbl, fromId, toId) {
   if (tbl === 'contas') reordenarContas(fromId, toId);
   else if (tbl === 'canais') reordenarCanais(fromId, toId);
   else if (tbl === 'fornecedores') reordenarFornecedores(fromId, toId);
+  else if (tbl === 'clientes') reordenarClientes(fromId, toId);
   else if (tbl.startsWith('cat')) reordenarCategorias(fromId, toId);
 }
 
@@ -164,6 +182,7 @@ function wire(container, ano) {
     else if (t.dataset.canalId && t.dataset.mes !== undefined) setCanalMeta(t.dataset.canalId, ano, Number(t.dataset.mes), num(t.value));
     else if (t.dataset.catId) renomearCategoria(t.dataset.catId, t.value);
     else if (t.dataset.fornId) renomearFornecedor(t.dataset.fornId, t.value);
+    else if (t.dataset.cliId) renomearCliente(t.dataset.cliId, t.value);
   });
 
   container.addEventListener('click', (ev) => {
@@ -188,6 +207,8 @@ function wire(container, ano) {
     else if (action === 'rm-cat') removerCategoria(id);
     else if (action === 'add-forn') addFornecedor();
     else if (action === 'rm-forn') removerFornecedor(id);
+    else if (action === 'add-cli') addCliente();
+    else if (action === 'rm-cli') removerCliente(id);
     else if (action === 'baixar-modelo') baixarModelo(b.dataset.tipo || 'simples');
     else if (action === 'importar') container.querySelector('#import-file').click();
     else if (action === 'add-ano') {
@@ -202,6 +223,7 @@ function wire(container, ano) {
       if (sel === 'contas') removerContas(ids);
       else if (sel === 'canais') removerCanais(ids);
       else if (sel === 'fornecedores') removerFornecedores(ids);
+      else if (sel === 'clientes') removerClientes(ids);
       else if (sel.startsWith('cat')) removerCategorias(ids);
     }
   });

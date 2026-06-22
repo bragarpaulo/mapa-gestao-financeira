@@ -168,6 +168,38 @@ export function linhaProjecao(id, labels, valores) {
   });
 }
 
+// Lucro por mês: barras verdes (positivo) / vermelhas (negativo) + linha de tendência (média móvel 3m).
+export function lucroChart(id, labels, lucro, onClick, mostrar = true) {
+  const cores = lucro.map(v => (Number(v) || 0) >= 0 ? '#16A34A' : '#EF4444');
+  // média móvel simples de 3 meses (suaviza variação para mostrar tendência)
+  const tend = lucro.map((_, i) => {
+    const ini = Math.max(0, i - 2);
+    const slice = lucro.slice(ini, i + 1);
+    return slice.reduce((a, b) => a + (Number(b) || 0), 0) / slice.length;
+  });
+  return make(id, {
+    type: 'bar',
+    data: { labels, datasets: [
+      { label: 'Lucro', data: lucro, backgroundColor: cores, borderRadius: 4 },
+      { label: 'Tendência (3m)', data: tend, type: 'line', borderColor: '#1D4ED8', backgroundColor: 'rgba(29,78,216,.15)', tension: .3, fill: false, pointRadius: 2, borderDash: [4, 4] },
+    ] }, options: gridOpts('y'), plugins: mostrar ? [barValueLabels] : [],
+  }, onClick);
+}
+
+// Sparkline (mini-linha em card) — sem eixos, sem legenda, sem grid. Compacto.
+export function sparkline(id, valores, cor = '#1D4ED8') {
+  return make(id, {
+    type: 'line',
+    data: { labels: valores.map((_, i) => i + 1), datasets: [{ data: valores, borderColor: cor, backgroundColor: cor + '33', fill: true, tension: .3, pointRadius: 0, borderWidth: 2 }] },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: { enabled: true, callbacks: { label: (ctx) => BRLfull(ctx.parsed.y) } } },
+      scales: { x: { display: false }, y: { display: false } },
+      elements: { line: { borderJoinStyle: 'round' } },
+    },
+  });
+}
+
 // Barras genéricas (horizontal = indexAxis y). Eixo de valor sempre em R$.
 export function barras(id, labels, valores, onClick, horizontal = false, mostrar = true) {
   return make(id, {

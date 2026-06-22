@@ -3,7 +3,7 @@ import {
   getState, setPeriodoMeses, setUiCampo, setDespesasFiltro, setVendasFiltro, setAnoAtivo, getAnos, getAnoAtivo, chartLabelOn,
 } from '../store.js';
 import { calcDashboard } from '../calc.js';
-import { pageHead, mesesChips, seg, exportToolbar, wireExport, eyeToggle } from '../ui.js';
+import { pageHead, mesesChips, seg, exportToolbar, wireExport, eyeToggle, kpi } from '../ui.js';
 import { fmtBRL0, fmtPct, esc } from '../util.js';
 import * as charts from '../charts.js';
 import { kpisResumoHtml, chartsResumoHtml, montarChartsResumo } from './resumo.js';
@@ -54,10 +54,19 @@ export function render(container) {
     ? `<label class="hint">Ano:</label><select id="dash-ano">${anos.map(a => `<option value="${a}" ${a === getAnoAtivo() ? 'selected' : ''}>${a}</option>`).join('')}</select>`
     : '';
 
+  const lucroAno = d.totalAnualLucro;
   container.innerHTML = `
     ${pageHead('Dashboard', `Visão geral — ${d.periodoLabel}`)}
     ${exportToolbar()}
-    <div class="toolbar">${anoSel}${mesesChips(s)}</div>
+
+    <div class="section-title" style="margin-top:0">Total do Ano · ${d.ano}</div>
+    <div class="grid kpis kpis-year">
+      ${kpi('Total faturado (ano)', fmtBRL0(d.totalAnualReceita), { variant: 'k-green', cls: 'green', route: 'vendas' })}
+      ${kpi('Total de despesas (ano)', fmtBRL0(d.totalAnualDespesa), { variant: 'k-red', cls: 'red', route: 'despesas' })}
+      ${kpi('Lucro do ano', fmtBRL0(lucroAno), { variant: lucroAno >= 0 ? 'k-green' : 'k-red', cls: lucroAno >= 0 ? 'green' : 'red', route: 'dre' })}
+    </div>
+
+    <div class="toolbar sticky-tools">${anoSel}${mesesChips(s)}</div>
     <div class="hint" style="margin:-6px 0 12px">Dica: <strong>clique</strong> = só aquele mês · <strong>Ctrl/⌘+clique</strong> = vários meses · <strong>arraste</strong> = intervalo · <strong>Ano todo</strong> = limpar.</div>
 
     ${kpisResumoHtml(d)}

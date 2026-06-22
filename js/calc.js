@@ -295,5 +295,6 @@ export function calcDashboard(s) {
     totalAnualReceita: dre.entradas.reduce((a, b) => a + b, 0),
     totalAnualDespesa: dre.totalDespesas.reduce((a, b) => a + Math.abs(b), 0),
     totalAnualGeracao: fluxo.resultado.reduce((a, b) => a + b, 0),
+    totalAnualLucro: dre.lucroLiquido.reduce((a, b) => a + b, 0),
   };
 }

@@ -5,6 +5,7 @@ import { DEFAULT_CATEGORIES, DEFAULT_RECEITA_CATEGORIES } from '../js/config.js'
 import {
   calcDRE, calcDFC, calcFluxo, calcDashboard, calcMetaxReal, calcPlanxReal, vendasDerivadas, despesasDerivadas,
 } from '../js/calc.js';
+import { expandirRecorrencia } from '../js/recurrence.js';
 
 const ano = 2026;
 const s = {
@@ -115,6 +116,30 @@ check('Meta×Real: realizado por canal = soma das vendas', approx(realCanal, tot
 const pxr = calcPlanxReal(s);
 const realDesp = pxr.reduce((a, c) => a + c.realizadoTotal, 0);
 check('Plan×Real: realizado = despesa competência (DRE)', approx(realDesp, Math.abs(sum(dre.totalDespesas))));
+
+console.log('\n== FASE 7: TOTAL ANUAL LUCRO ==');
+check('totalAnualLucro = soma da série de lucro', approx(dashAno.totalAnualLucro, sum(dre.lucroLiquido)), `(${brl(dashAno.totalAnualLucro)} vs ${brl(sum(dre.lucroLiquido))})`);
+check('totalAnualLucro ≈ totalAnualReceita − totalAnualDespesa', approx(dashAno.totalAnualLucro, dashAno.totalAnualReceita - dashAno.totalAnualDespesa, 100), '(margem de 100 reais p/ arred. de impostos/encargos)');
+
+console.log('\n== FASE 7: RECORRÊNCIA (expandirRecorrencia) ==');
+const base = { descricao: 'Aluguel', categoriaId: 'demais_despesas', valor: 1000, fornecedor: 'X', contaId: '', formaPagamento: 'PIX' };
+const mensal = expandirRecorrencia(base, 'mensal', '2026-06-15', '2026-12-15', 'despesa');
+check('Recorrência mensal jun→dez gera 7 parcelas', mensal.length === 7, `(gerou ${mensal.length})`);
+check('Recorrência mensal: 1ª data = início', mensal[0]?.dataVencimento === '2026-06-15');
+check('Recorrência mensal: última data = fim', mensal[mensal.length - 1]?.dataVencimento === '2026-12-15');
+check('Recorrência mensal: todas têm o mesmo recorrenciaId', new Set(mensal.map(p => p.recorrenciaId)).size === 1);
+check('Recorrência mensal: mesCompetencia preenchido', mensal.every(p => /^[a-z]{3}\/\d{4}$/.test(p.mesCompetencia)));
+
+const tri = expandirRecorrencia(base, 'trimestral', '2026-01-10', '2026-12-10', 'despesa');
+check('Recorrência trimestral 2026 gera 4 parcelas', tri.length === 4, `(gerou ${tri.length})`);
+check('Recorrência trimestral: datas em jan/abr/jul/out', tri.map(p => p.dataVencimento).join(',') === '2026-01-10,2026-04-10,2026-07-10,2026-10-10');
+
+const vendaRec = expandirRecorrencia({ canalId: '', categoriaReceitaId: 'rec_bruta', valor: 500, cliente: 'A', produto: 'B' }, 'mensal', '2026-03-05', '2026-05-05', 'venda');
+check('Venda recorrente: define dataVenda + dataVencimento', vendaRec.every(p => p.dataVenda && p.dataVencimento));
+check('Venda recorrente: 3 parcelas (mar/abr/mai)', vendaRec.length === 3);
+
+const inv = expandirRecorrencia(base, 'mensal', '2026-12-01', '2026-06-01', 'despesa');
+check('Recorrência com fim < início → vazio', inv.length === 0);
 
 console.log(`\n== RESULTADO: ${pass} passou, ${fail} falhou ==`);
 process.exit(fail ? 1 : 0);
