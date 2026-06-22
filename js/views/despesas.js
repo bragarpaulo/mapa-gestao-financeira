@@ -13,6 +13,13 @@ const LEGENDA = [
   { cls: 'st-info', label: STATUS_DESPESA.APAGAR }, { cls: 'st-bad', label: STATUS_DESPESA.ATRASADO },
 ];
 
+// Linha de fallback p/ um registro com dados inconsistentes (ex.: importação) — não quebra a tela.
+function rowErro(id) {
+  return `<tr data-id="${esc(id || '')}" class="st-bad">
+    <td class="col-chk"><input type="checkbox" class="rowchk" value="${esc(id || '')}"></td>
+    <td class="col-acoes nowrap"><button class="btn btn-sm btn-icon" title="Excluir linha inconsistente" data-action="rm" data-id="${esc(id || '')}">🗑</button></td>
+    <td colspan="11" class="empty">Linha com dados inconsistentes — clique 🗑 para remover.</td></tr>`;
+}
 function sortKey(l, campo) {
   if (campo === 'valor') return num(l.valor);
   if (campo === 'mesCompetencia') { const [mm, yy] = String(l.mesCompetencia || '').split('/'); const mi = MESES.indexOf(mm); return (Number(yy) || 0) * 100 + (mi < 0 ? 0 : mi); }
@@ -72,7 +79,7 @@ export function render(container) {
   const anos = anosSelecionados(s), meses = s.ui.periodoMeses || [];
   const compOpts = chavesAno(anoAtivo(s)).map(k => ({ id: k, nome: k }));
 
-  let linhas = s.despesas.map(despesaDerivada);
+  let linhas = s.despesas.map(d => { try { return despesaDerivada(d); } catch (e) { console.error('Despesa com dados inconsistentes:', d, e); return { ...d, _erro: true }; } });
   linhas = linhas.filter(d => !d.mesCompetencia && !d.dataVencimento ? true : noPeriodoComp(d.mesCompetencia, anos, meses) || (d.dataVencimento && noPeriodoData(d.dataVencimento, anos, meses)));
   if (filtro.categoria) linhas = linhas.filter(d => d.categoriaId === filtro.categoria);
   if (filtro.status && filtro.status.length) linhas = linhas.filter(d => filtro.status.includes(d.status));
@@ -87,7 +94,7 @@ export function render(container) {
   const addBtn = '<button class="btn btn-primary btn-sm" data-action="add">+ Adicionar linha</button>';
   const catChip = filtro.categoria ? `<button class="chip active" data-action="limpar-cat" title="Remover filtro">Categoria: ${esc(nomeCategoria(filtro.categoria))} ✕</button>` : '';
 
-  const rows = linhas.map(d => rowHtml(d, s, compOpts)).join('') || `<tr class="row-vazia"><td colspan="13" class="empty">Nenhuma despesa no período. Ajuste o ano/mês no topo ou clique em “+ Adicionar linha”.</td></tr>`;
+  const rows = linhas.map(d => { try { return d._erro ? rowErro(d.id) : rowHtml(d, s, compOpts); } catch (e) { console.error('Erro ao renderizar despesa:', d, e); return rowErro(d.id); } }).join('') || `<tr class="row-vazia"><td colspan="13" class="empty">Nenhuma despesa no período. Ajuste o ano/mês no topo ou clique em “+ Adicionar linha”.</td></tr>`;
 
   container.innerHTML = `
     ${pageHead('Lançamento de Despesas', 'A linha em edição fica destacada e não se reordena enquanto você digita. Preencha "Pago em" e o status vira Pago. Clique no status p/ filtrar; no 🔁 p/ repetir.')}

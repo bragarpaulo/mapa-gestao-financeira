@@ -13,6 +13,13 @@ const LEGENDA = [
   { cls: 'st-info', label: STATUS_VENDA.PREVISTO }, { cls: 'st-bad', label: STATUS_VENDA.ATRASADO },
 ];
 
+// Linha de fallback p/ um registro com dados inconsistentes (ex.: importação) — não quebra a tela.
+function rowErro(id) {
+  return `<tr data-id="${esc(id || '')}" class="st-bad">
+    <td class="col-chk"><input type="checkbox" class="rowchk" value="${esc(id || '')}"></td>
+    <td class="col-acoes nowrap"><button class="btn btn-sm btn-icon" title="Excluir linha inconsistente" data-action="rm" data-id="${esc(id || '')}">🗑</button></td>
+    <td colspan="15" class="empty">Linha com dados inconsistentes — clique 🗑 para remover.</td></tr>`;
+}
 const sortKey = (l, c) => c === 'valor' ? num(l.valor) : String(l[c] || '');
 const dataValida = (iso) => { const m = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{2})$/); return !!m && +m[1] >= 1900 && +m[1] <= 2999 && +m[2] >= 1 && +m[2] <= 12 && +m[3] >= 1 && +m[3] <= 31; };
 const ultimoDiaAno = (ano) => `${ano}-12-31`;
@@ -61,7 +68,7 @@ export function render(container) {
   const sort = s.ui.vendasSort || { campo: '', dir: 'asc' };
   const anos = anosSelecionados(s), meses = s.ui.periodoMeses || [];
 
-  let linhas = s.vendas.map(vendaDerivada);
+  let linhas = s.vendas.map(v => { try { return vendaDerivada(v); } catch (e) { console.error('Venda com dados inconsistentes:', v, e); return { ...v, _erro: true }; } });
   linhas = linhas.filter(v => !v.dataVenda || noPeriodo(v.dataVenda, anos, meses));
   if (filtro.canal) linhas = linhas.filter(v => v.canalId === filtro.canal);
   if (filtro.status && filtro.status.length) linhas = linhas.filter(v => filtro.status.includes(v.status));
@@ -76,7 +83,7 @@ export function render(container) {
   const addBtn = '<button class="btn btn-primary btn-sm" data-action="add">+ Adicionar linha</button>';
   const canalChip = filtro.canal ? `<button class="chip active" data-action="limpar-canal" title="Remover filtro">Canal: ${esc(nomeCanal(filtro.canal))} ✕</button>` : '';
 
-  const rows = linhas.map(v => rowHtml(v, s)).join('') || `<tr class="row-vazia"><td colspan="17" class="empty">Nenhuma venda no período. Ajuste o ano/mês no topo ou clique em “+ Adicionar linha”.</td></tr>`;
+  const rows = linhas.map(v => { try { return v._erro ? rowErro(v.id) : rowHtml(v, s); } catch (e) { console.error('Erro ao renderizar venda:', v, e); return rowErro(v.id); } }).join('') || `<tr class="row-vazia"><td colspan="17" class="empty">Nenhuma venda no período. Ajuste o ano/mês no topo ou clique em “+ Adicionar linha”.</td></tr>`;
 
   container.innerHTML = `
     ${pageHead('Lançamento de Vendas', 'A linha em edição fica destacada e não se reordena enquanto você digita. Clique no status p/ filtrar; no 🔁 p/ repetir; nos cabeçalhos p/ ordenar.')}
