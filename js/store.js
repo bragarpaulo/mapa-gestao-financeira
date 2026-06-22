@@ -329,7 +329,7 @@ export function aplicarRecorrenciaVenda(id, periodo, dataFim) {
 }
 
 // ---- CRUD: Canais (+ metas por ano, reorder, multi-delete) ---------------
-export function addCanal() { update(s => s.canais.push({ id: uid('ch'), nome: 'Novo Canal', metas: {} })); }
+export function addCanal(opts) { let nova; update(s => { nova = { id: uid('ch'), nome: 'Novo Canal', metas: {} }; s.canais.push(nova); }, opts); return nova; }
 export function renomearCanal(id, nome) { update(s => { const c = s.canais.find(x => x.id === id); if (c) c.nome = nome; }); }
 export function setCanalMeta(id, ano, mesIdx, valor) { update(s => { const c = s.canais.find(x => x.id === id); if (!c) return; if (!Array.isArray(c.metas[ano])) c.metas[ano] = Array(12).fill(0); c.metas[ano][mesIdx] = valor; }); }
 export function removerCanal(id) { update(s => { s.canais = s.canais.filter(c => c.id !== id); }); }
@@ -338,7 +338,7 @@ export function reordenarCanais(fromId, toId) { update(s => moveById(s.canais, f
 
 // ---- CRUD: Recebedores / Fornecedores ------------------------------------
 const normNome = (s) => String(s || '').trim().normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
-export function addFornecedor() { update(s => s.fornecedores.push({ id: uid('forn'), nome: 'Novo recebedor' })); }
+export function addFornecedor(opts) { let nova; update(s => { nova = { id: uid('forn'), nome: 'Novo recebedor' }; s.fornecedores.push(nova); }, opts); return nova; }
 export function renomearFornecedor(id, nome) { update(s => { const f = s.fornecedores.find(x => x.id === id); if (f) f.nome = nome; }); }
 export function removerFornecedor(id) { update(s => { s.fornecedores = s.fornecedores.filter(f => f.id !== id); }); }
 export function removerFornecedores(ids) { const set = new Set(ids); update(s => { s.fornecedores = s.fornecedores.filter(f => !set.has(f.id)); }); }
@@ -350,7 +350,7 @@ export function ensureFornecedor(nome) {
 }
 
 // ---- CRUD: Clientes (vendas) ---------------------------------------------
-export function addCliente() { update(s => s.clientes.push({ id: uid('cli'), nome: 'Novo cliente' })); }
+export function addCliente(opts) { let nova; update(s => { nova = { id: uid('cli'), nome: 'Novo cliente' }; s.clientes.push(nova); }, opts); return nova; }
 export function renomearCliente(id, nome) { update(s => { const c = s.clientes.find(x => x.id === id); if (c) c.nome = nome; }); }
 export function removerCliente(id) { update(s => { s.clientes = s.clientes.filter(c => c.id !== id); }); }
 export function removerClientes(ids) { const set = new Set(ids); update(s => { s.clientes = s.clientes.filter(c => !set.has(c.id)); }); }
@@ -361,7 +361,7 @@ export function ensureCliente(nome) {
 }
 
 // ---- CRUD: Produtos / Pedidos (vendas) — espelho de Clientes -------------
-export function addProduto() { update(s => s.produtos.push({ id: uid('prod'), nome: 'Novo produto' })); }
+export function addProduto(opts) { let nova; update(s => { nova = { id: uid('prod'), nome: 'Novo produto' }; s.produtos.push(nova); }, opts); return nova; }
 export function renomearProduto(id, nome) { update(s => { const p = s.produtos.find(x => x.id === id); if (p) p.nome = nome; }); }
 export function removerProduto(id) { update(s => { s.produtos = s.produtos.filter(p => p.id !== id); }); }
 export function removerProdutos(ids) { const set = new Set(ids); update(s => { s.produtos = s.produtos.filter(p => !set.has(p.id)); }); }
@@ -373,14 +373,14 @@ export function ensureProduto(nome) {
 
 // ---- CRUD: Categorias ----------------------------------------------------
 export function renomearCategoria(id, nome) { update(s => { const c = s.categorias.find(x => x.id === id); if (c) c.nome = nome; }); }
-export function addCategoria(grupoId) { update(s => s.categorias.push({ id: uid('cat'), grupo: grupoId, nome: 'Nova Categoria' })); }
+export function addCategoria(grupoId, opts) { let nova; update(s => { nova = { id: uid('cat'), grupo: grupoId, nome: 'Nova Categoria' }; s.categorias.push(nova); }, opts); return nova; }
 function limparOrcDe(s, id) { for (const ano in s.orcamento) delete s.orcamento[ano][id]; }
 export function removerCategoria(id) { update(s => { s.categorias = s.categorias.filter(c => c.id !== id); limparOrcDe(s, id); }); }
 export function removerCategorias(ids) { const set = new Set(ids); update(s => { s.categorias = s.categorias.filter(c => !set.has(c.id)); ids.forEach(id => limparOrcDe(s, id)); }); }
 export function reordenarCategorias(fromId, toId) { update(s => moveById(s.categorias, fromId, toId)); }
 
 // ---- CRUD: Contas --------------------------------------------------------
-export function addConta() { update(s => s.contas.push({ id: uid('conta'), nome: 'Novo Banco', tipo: 'Conta Corrente', saldo: 0, dataBase: s.empresa.dataInicio || '' })); }
+export function addConta(opts) { let nova; update(s => { nova = { id: uid('conta'), nome: 'Novo Banco', tipo: 'Conta Corrente', saldo: 0, dataBase: s.empresa.dataInicio || '' }; s.contas.push(nova); }, opts); return nova; }
 export function setContaCampo(id, campo, valor) { update(s => { const c = s.contas.find(x => x.id === id); if (c) c[campo] = valor; }); }
 export function removerConta(id) { update(s => { s.contas = s.contas.filter(c => c.id !== id); }); }
 export function removerContas(ids) { const set = new Set(ids); update(s => { s.contas = s.contas.filter(c => !set.has(c.id)); }); }

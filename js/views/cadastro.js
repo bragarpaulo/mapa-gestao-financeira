@@ -1,6 +1,7 @@
 // views/cadastro.js — empresa, anos, contas, canais (metas por ano), categorias e listas de apoio.
-// Reordenação (↑/↓) só onde a ordem importa: contas, canais e categorias (definem a ordem nos
-// relatórios/selects). Clientes e fornecedores são só sugestões de autocomplete — sem reordenar.
+// Reordenação por ARRASTAR (alça ⠿) onde a ordem importa: contas, canais e categorias (definem a ordem
+// nos relatórios/selects). Clientes/produtos/fornecedores são só sugestões de autocomplete — sem reordenar.
+// Adicionar linha NÃO recarrega a tela: anexa a linha, foca e destaca (igual aos Lançamentos).
 import {
   getState, setEmpresaCampo, addConta, setContaCampo, removerConta, reordenarContas,
   addCanal, renomearCanal, setCanalMeta, removerCanal, reordenarCanais,
@@ -15,56 +16,61 @@ import { pageHead, options, moneyInput } from '../ui.js';
 import { esc, num, fmtBRL0, anoAtivo, metaArr } from '../util.js';
 import { baixarModelo, importarArquivo } from '../import.js';
 
+// Alça de arrastar (reordenar). chk = seleção múltipla. sectionHead = cabeçalho de card.
+const handle = (id, tbl) => `<td class="col-mini"><span class="drag-handle" draggable="true" data-drag="${id}" data-tbl="${tbl}" title="Arraste para reordenar">⠿</span></td>`;
 const chk = (id, scope) => `<td class="col-mini"><input type="checkbox" class="chk" data-sel="${scope}" value="${id}"></td>`;
-// Setas de reordenar — desabilitadas nas pontas (1ª linha não sobe, última não desce).
-const mover = (id, tbl, isFirst, isLast) =>
-  `<button class="btn btn-sm btn-icon" data-move="up" data-tbl="${tbl}" data-id="${id}" title="Subir"${isFirst ? ' disabled' : ''}>↑</button>` +
-  `<button class="btn btn-sm btn-icon" data-move="down" data-tbl="${tbl}" data-id="${id}" title="Descer"${isLast ? ' disabled' : ''}>↓</button>`;
-// Cabeçalho padrão de card: título (+ subtexto) à esquerda, ações à direita.
 const sectionHead = (titulo, { sub = '', actions = '' } = {}) =>
   `<div class="card-head"><div><div class="ch-h">${titulo}</div>${sub ? `<div class="hint">${esc(sub)}</div>` : ''}</div><div class="card-head-actions">${actions}</div></div>`;
+const rmBtn = (action, id) => `<td class="nowrap col-icon"><button class="btn btn-sm btn-icon" data-action="${action}" data-id="${id}">🗑</button></td>`;
+
+// ---- Construtores de linha (reusados no render e no adicionar-em-foco) ----
+function contaRow(c) {
+  return `<tr data-row="${c.id}" data-tbl="contas">
+    ${handle(c.id, 'contas')}
+    <td><input class="inp-flush" data-conta-id="${c.id}" data-campo="nome" value="${esc(c.nome)}"></td>
+    <td><select data-conta-id="${c.id}" data-campo="tipo">${options(TIPOS_CONTA.map(t => ({ id: t, nome: t })), c.tipo)}</select></td>
+    <td class="num">${moneyInput(c.saldo, `data-conta-id="${c.id}" data-campo="saldo"`, 140)}</td>
+    <td><input type="date" data-conta-id="${c.id}" data-campo="dataBase" value="${esc(c.dataBase || '')}"></td>
+    ${rmBtn('rm-conta', c.id)}
+  </tr>`;
+}
+function canalRow(c, ano) {
+  const meta = metaArr(c, ano);
+  const metas = meta.map((v, j) => `<td class="num">${moneyInput(v, `data-canal-id="${c.id}" data-mes="${j}"`, 110)}</td>`).join('');
+  const tot = meta.reduce((x, v) => x + num(v), 0);
+  return `<tr data-row="${c.id}" data-tbl="canais">
+    ${handle(c.id, 'canais')}
+    <td><input class="inp-flush" style="min-width:130px" data-canal-id="${c.id}" data-campo="nome" value="${esc(c.nome)}"></td>
+    ${metas}<td class="num"><strong>${fmtBRL0(tot)}</strong></td>
+    ${rmBtn('rm-canal', c.id)}
+  </tr>`;
+}
+function catRow(c, scope) {
+  return `<tr data-row="${c.id}" data-tbl="${scope}">
+    ${handle(c.id, scope)}${chk(c.id, scope)}
+    <td><input class="inp-flush" data-cat-id="${c.id}" value="${esc(c.nome)}"></td>
+    ${rmBtn('rm-cat', c.id)}
+  </tr>`;
+}
+const clienteRow = (c) => `<tr data-row="${c.id}" data-tbl="clientes">${chk(c.id, 'clientes')}<td><input class="inp-flush" data-cli-id="${c.id}" value="${esc(c.nome)}"></td>${rmBtn('rm-cli', c.id)}</tr>`;
+const produtoRow = (p) => `<tr data-row="${p.id}" data-tbl="produtos">${chk(p.id, 'produtos')}<td><input class="inp-flush" data-prod-id="${p.id}" value="${esc(p.nome)}"></td>${rmBtn('rm-prod', p.id)}</tr>`;
+const fornecedorRow = (f) => `<tr data-row="${f.id}" data-tbl="fornecedores">${chk(f.id, 'fornecedores')}<td><input class="inp-flush" data-forn-id="${f.id}" value="${esc(f.nome)}"></td>${rmBtn('rm-forn', f.id)}</tr>`;
 
 export function render(container) {
   const s = getState();
   const e = s.empresa;
   const ano = anoAtivo(s);
 
-  // ---- Anos ----
   const anosChips = e.anos.map(a => `<span class="chip ${a === ano ? 'active' : ''}" data-ano-sel="${a}">${a}${e.anos.length > 1 ? ` <span class="x" data-ano-rm="${a}" title="Remover ano">✕</span>` : ''}</span>`).join('');
 
-  // ---- Contas (ordem importa: ancoram o Fluxo e os selects de conta) ----
-  const contasRows = s.contas.map((c, i) => `
-    <tr data-row="${c.id}" data-tbl="contas">
-      <td><input class="inp-flush" data-conta-id="${c.id}" data-campo="nome" value="${esc(c.nome)}"></td>
-      <td><select data-conta-id="${c.id}" data-campo="tipo">${options(TIPOS_CONTA.map(t => ({ id: t, nome: t })), c.tipo)}</select></td>
-      <td class="num">${moneyInput(c.saldo, `data-conta-id="${c.id}" data-campo="saldo"`, 140)}</td>
-      <td><input type="date" data-conta-id="${c.id}" data-campo="dataBase" value="${esc(c.dataBase || '')}"></td>
-      <td class="nowrap col-icon">${mover(c.id, 'contas', i === 0, i === s.contas.length - 1)}<button class="btn btn-sm btn-icon" data-action="rm-conta" data-id="${c.id}">🗑</button></td>
-    </tr>`).join('') || `<tr><td colspan="5" class="empty">Nenhuma conta ainda. Clique em "+ Adicionar conta" para começar.</td></tr>`;
+  const contasRows = s.contas.map(contaRow).join('') || `<tr><td colspan="6" class="empty">Nenhuma conta ainda. Clique em "+ Adicionar conta" para começar.</td></tr>`;
   const totalSaldo = s.contas.reduce((x, c) => x + num(c.saldo), 0);
+  const canalRows = s.canais.map(c => canalRow(c, ano)).join('') || `<tr><td colspan="${MESES.length + 4}" class="empty">Nenhum canal de venda. Adicione um para definir metas.</td></tr>`;
 
-  // ---- Canais (metas do ano ativo; ordem importa nos relatórios/selects) ----
-  const canalRows = s.canais.map((c, i) => {
-    const meta = metaArr(c, ano);
-    const metas = meta.map((v, j) => `<td class="num">${moneyInput(v, `data-canal-id="${c.id}" data-mes="${j}"`, 110)}</td>`).join('');
-    const tot = meta.reduce((x, v) => x + num(v), 0);
-    return `<tr data-row="${c.id}" data-tbl="canais">
-      <td><input class="inp-flush" style="min-width:130px" data-canal-id="${c.id}" data-campo="nome" value="${esc(c.nome)}"></td>
-      ${metas}<td class="num"><strong>${fmtBRL0(tot)}</strong></td>
-      <td class="nowrap col-icon">${mover(c.id, 'canais', i === 0, i === s.canais.length - 1)}<button class="btn btn-sm btn-icon" data-action="rm-canal" data-id="${c.id}">🗑</button></td>
-    </tr>`;
-  }).join('') || `<tr><td colspan="${MESES.length + 3}" class="empty">Nenhum canal de venda. Adicione um para definir metas.</td></tr>`;
-
-  // ---- Categorias por grupo (ordem importa: define as linhas do DRE/DFC) ----
   const catGrupos = GRUPOS.map(g => {
     const cats = s.categorias.filter(c => c.grupo === g.id);
     const scope = 'cat:' + g.id;
-    const rows = cats.map((c, i) => `
-      <tr data-row="${c.id}" data-tbl="${scope}">
-        ${chk(c.id, scope)}
-        <td><input class="inp-flush" data-cat-id="${c.id}" value="${esc(c.nome)}"></td>
-        <td class="nowrap col-icon">${mover(c.id, scope, i === 0, i === cats.length - 1)}<button class="btn btn-sm btn-icon" data-action="rm-cat" data-id="${c.id}">🗑</button></td>
-      </tr>`).join('') || `<tr><td colspan="3" class="empty">Nenhuma categoria neste grupo.</td></tr>`;
+    const rows = cats.map(c => catRow(c, scope)).join('') || `<tr><td colspan="4" class="empty">Nenhuma categoria neste grupo.</td></tr>`;
     return `<div class="cat-grupo">
       <div class="cat-grupo-head">
         <strong>${esc(g.titulo)}</strong>
@@ -73,36 +79,16 @@ export function render(container) {
           <button class="btn btn-sm btn-primary" data-action="add-cat" data-grupo="${g.id}">+ categoria</button>
         </div>
       </div>
-      <div class="table-wrap table-flat" style="margin-top:8px"><table><tbody>${rows}</tbody></table></div>
+      <div class="table-wrap table-flat" style="margin-top:8px"><table><tbody data-grptb="${g.id}">${rows}</tbody></table></div>
     </div>`;
   }).join('');
 
-  // ---- Clientes (só sugestão de autocomplete — sem reordenar) ----
-  const clientesRows = s.clientes.map(c => `
-    <tr data-row="${c.id}" data-tbl="clientes">
-      ${chk(c.id, 'clientes')}
-      <td><input class="inp-flush" data-cli-id="${c.id}" value="${esc(c.nome)}"></td>
-      <td class="nowrap col-icon"><button class="btn btn-sm btn-icon" data-action="rm-cli" data-id="${c.id}">🗑</button></td>
-    </tr>`).join('') || `<tr><td colspan="3" class="empty">Nenhum cliente. Eles também surgem ao lançar uma venda.</td></tr>`;
-
-  // ---- Produtos / Pedidos (só sugestão de autocomplete — sem reordenar) ----
-  const produtosRows = s.produtos.map(p => `
-    <tr data-row="${p.id}" data-tbl="produtos">
-      ${chk(p.id, 'produtos')}
-      <td><input class="inp-flush" data-prod-id="${p.id}" value="${esc(p.nome)}"></td>
-      <td class="nowrap col-icon"><button class="btn btn-sm btn-icon" data-action="rm-prod" data-id="${p.id}">🗑</button></td>
-    </tr>`).join('') || `<tr><td colspan="3" class="empty">Nenhum produto/pedido. Eles também surgem ao lançar uma venda.</td></tr>`;
-
-  // ---- Recebedores / Fornecedores (só sugestão de autocomplete — sem reordenar) ----
-  const fornecedoresRows = s.fornecedores.map(f => `
-    <tr data-row="${f.id}" data-tbl="fornecedores">
-      ${chk(f.id, 'fornecedores')}
-      <td><input class="inp-flush" data-forn-id="${f.id}" value="${esc(f.nome)}"></td>
-      <td class="nowrap col-icon"><button class="btn btn-sm btn-icon" data-action="rm-forn" data-id="${f.id}">🗑</button></td>
-    </tr>`).join('') || `<tr><td colspan="3" class="empty">Nenhum recebedor. Eles também surgem ao lançar uma despesa.</td></tr>`;
+  const clientesRows = s.clientes.map(clienteRow).join('') || `<tr><td colspan="3" class="empty">Nenhum cliente. Eles também surgem ao lançar uma venda.</td></tr>`;
+  const produtosRows = s.produtos.map(produtoRow).join('') || `<tr><td colspan="3" class="empty">Nenhum produto/pedido. Eles também surgem ao lançar uma venda.</td></tr>`;
+  const fornecedoresRows = s.fornecedores.map(fornecedorRow).join('') || `<tr><td colspan="3" class="empty">Nenhum recebedor. Eles também surgem ao lançar uma despesa.</td></tr>`;
 
   container.innerHTML = `
-    ${pageHead('Cadastro', 'Configure empresa, contas, canais e categorias. Use ↑/↓ para ordenar o que aparece nos relatórios.')}
+    ${pageHead('Cadastro', 'Configure empresa, contas, canais e categorias. Arraste pela alça ⠿ para reordenar o que aparece nos relatórios.')}
 
     <div class="card card-pad cad-section">
       ${sectionHead('🏢 Empresa & Anos')}
@@ -117,40 +103,40 @@ export function render(container) {
     </div>
 
     <div class="card card-pad cad-section">
-      ${sectionHead('🏦 Contas correntes / caixa', { sub: 'Saldo + data-base ancoram o Fluxo de Caixa.', actions: '<button class="btn btn-sm btn-primary" data-action="add-conta">+ Adicionar conta</button>' })}
+      ${sectionHead('🏦 Contas correntes / caixa', { sub: 'Saldo + data-base ancoram o Fluxo de Caixa. Arraste ⠿ para reordenar.', actions: '<button class="btn btn-sm btn-primary" data-action="add-conta">+ Adicionar conta</button>' })}
       <div class="table-wrap table-flat"><table>
-        <thead><tr><th>Banco / Caixa</th><th>Tipo</th><th class="num">Saldo</th><th>Data-base</th><th></th></tr></thead>
-        <tbody>${contasRows}</tbody>
-        <tfoot><tr class="row-total"><td colspan="2">Total</td><td class="num">${fmtBRL0(totalSaldo)}</td><td colspan="2"></td></tr></tfoot>
+        <thead><tr><th></th><th>Banco / Caixa</th><th>Tipo</th><th class="num">Saldo</th><th>Data-base</th><th></th></tr></thead>
+        <tbody id="tb-contas">${contasRows}</tbody>
+        <tfoot><tr class="row-total"><td colspan="3">Total</td><td class="num">${fmtBRL0(totalSaldo)}</td><td colspan="2"></td></tr></tfoot>
       </table></div>
     </div>
 
     <div class="card card-pad cad-section">
       ${sectionHead('📈 Canais de venda & meta (mês a mês)', { actions: `<span class="badge-ano">Metas de ${ano}</span><button class="btn btn-sm btn-primary" data-action="add-canal">+ Adicionar canal</button>` })}
       <div class="table-wrap table-flat"><table>
-        <thead><tr><th>Canal</th>${MESES.map(m => `<th class="num">${m}</th>`).join('')}<th class="num">Total</th><th></th></tr></thead>
-        <tbody>${canalRows}</tbody>
+        <thead><tr><th></th><th>Canal</th>${MESES.map(m => `<th class="num">${m}</th>`).join('')}<th class="num">Total</th><th></th></tr></thead>
+        <tbody id="tb-canais">${canalRows}</tbody>
       </table></div>
     </div>
 
     <div class="card card-pad cad-section">
-      ${sectionHead('🏷️ Categorias de despesa', { sub: 'Renomear e reordenar é seguro — os cálculos usam um ID interno. A ordem define as linhas do DRE/DFC.' })}
+      ${sectionHead('🏷️ Categorias de despesa', { sub: 'Renomear e arrastar (⠿) é seguro — os cálculos usam um ID interno. A ordem define as linhas do DRE/DFC.' })}
       ${catGrupos}
     </div>
 
     <div class="card card-pad cad-section">
       ${sectionHead('👥 Clientes (Vendas)', { sub: 'Sugeridos no campo Cliente das Vendas. Nomes novos digitados lá são cadastrados sozinhos.', actions: '<button class="btn btn-sm" data-action="del-sel" data-sel="clientes">Excluir selecionados</button><button class="btn btn-sm btn-primary" data-action="add-cli">+ Adicionar cliente</button>' })}
-      <div class="table-wrap table-flat"><table><tbody>${clientesRows}</tbody></table></div>
+      <div class="table-wrap table-flat"><table><tbody id="tb-clientes">${clientesRows}</tbody></table></div>
     </div>
 
     <div class="card card-pad cad-section">
       ${sectionHead('📦 Produtos / Pedidos (Vendas)', { sub: 'Sugeridos no campo Produto/Pedido das Vendas. Itens novos digitados lá são cadastrados sozinhos.', actions: '<button class="btn btn-sm" data-action="del-sel" data-sel="produtos">Excluir selecionados</button><button class="btn btn-sm btn-primary" data-action="add-prod">+ Adicionar produto/pedido</button>' })}
-      <div class="table-wrap table-flat"><table><tbody>${produtosRows}</tbody></table></div>
+      <div class="table-wrap table-flat"><table><tbody id="tb-produtos">${produtosRows}</tbody></table></div>
     </div>
 
     <div class="card card-pad cad-section">
       ${sectionHead('🧾 Recebedores / Fornecedores', { sub: 'Sugeridos no campo Recebedor das Despesas.', actions: '<button class="btn btn-sm" data-action="del-sel" data-sel="fornecedores">Excluir selecionados</button><button class="btn btn-sm btn-primary" data-action="add-forn">+ Adicionar recebedor</button>' })}
-      <div class="table-wrap table-flat"><table><tbody>${fornecedoresRows}</tbody></table></div>
+      <div class="table-wrap table-flat"><table><tbody id="tb-fornecedores">${fornecedoresRows}</tbody></table></div>
     </div>
 
     <details class="card card-pad cad-section cad-import">
@@ -165,6 +151,20 @@ export function render(container) {
     </details>`;
 
   wire(container, ano);
+}
+
+// Anexa uma linha nova a um tbody (sem re-render), foca e destaca — UX de "adicionar".
+function appendRow(container, tbodySel, html, id) {
+  const tb = container.querySelector(tbodySel); if (!tb) return;
+  const vazia = tb.querySelector('td.empty'); if (vazia) vazia.closest('tr').remove();
+  tb.insertAdjacentHTML('beforeend', html);
+  const tr = container.querySelector(`tr[data-row="${CSS.escape(id)}"]`);
+  if (tr) {
+    tr.classList.add('row-nova');
+    tr.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    const inp = tr.querySelector('input,select'); if (inp) { inp.focus(); try { inp.select && inp.select(); } catch (e) {} }
+    setTimeout(() => tr.classList.remove('row-nova'), 1600);
+  }
 }
 
 function doReorder(tbl, fromId, toId) {
@@ -191,31 +191,22 @@ function wire(container, ano) {
   });
 
   container.addEventListener('click', (ev) => {
-    const b = ev.target.closest('[data-action], [data-move], [data-ano-sel], [data-ano-rm]');
+    const b = ev.target.closest('[data-action], [data-ano-sel], [data-ano-rm]');
     if (!b) return;
     if (b.dataset.anoRm) { ev.stopPropagation(); if (confirm(`Remover o ano ${b.dataset.anoRm} (e suas metas/orçamento)?`)) removerAno(b.dataset.anoRm); return; }
     if (b.dataset.anoSel) { setAnoAtivo(b.dataset.anoSel); return; }
-    if (b.dataset.move) {
-      if (b.disabled) return;
-      const { tbl, id, move } = b.dataset;
-      const rows = Array.from(container.querySelectorAll(`tr[data-tbl="${CSS.escape(tbl)}"]`)).map(r => r.dataset.row);
-      const idx = rows.indexOf(id);
-      if (move === 'up' && idx > 0) doReorder(tbl, id, rows[idx - 1]);
-      else if (move === 'down' && idx < rows.length - 1) doReorder(tbl, id, rows[idx + 2] || null);
-      return;
-    }
     const { action, id, grupo, sel } = b.dataset;
-    if (action === 'add-conta') addConta();
+    if (action === 'add-conta') { const c = addConta({ silent: true }); appendRow(container, '#tb-contas', contaRow(c), c.id); }
     else if (action === 'rm-conta') removerConta(id);
-    else if (action === 'add-canal') addCanal();
+    else if (action === 'add-canal') { const c = addCanal({ silent: true }); appendRow(container, '#tb-canais', canalRow(c, ano), c.id); }
     else if (action === 'rm-canal') removerCanal(id);
-    else if (action === 'add-cat') addCategoria(grupo);
+    else if (action === 'add-cat') { const c = addCategoria(grupo, { silent: true }); appendRow(container, `tbody[data-grptb="${CSS.escape(grupo)}"]`, catRow(c, 'cat:' + grupo), c.id); }
     else if (action === 'rm-cat') removerCategoria(id);
-    else if (action === 'add-forn') addFornecedor();
+    else if (action === 'add-forn') { const c = addFornecedor({ silent: true }); appendRow(container, '#tb-fornecedores', fornecedorRow(c), c.id); }
     else if (action === 'rm-forn') removerFornecedor(id);
-    else if (action === 'add-cli') addCliente();
+    else if (action === 'add-cli') { const c = addCliente({ silent: true }); appendRow(container, '#tb-clientes', clienteRow(c), c.id); }
     else if (action === 'rm-cli') removerCliente(id);
-    else if (action === 'add-prod') addProduto();
+    else if (action === 'add-prod') { const c = addProduto({ silent: true }); appendRow(container, '#tb-produtos', produtoRow(c), c.id); }
     else if (action === 'rm-prod') removerProduto(id);
     else if (action === 'baixar-modelo') baixarModelo(b.dataset.tipo || 'simples');
     else if (action === 'importar') container.querySelector('#import-file').click();
@@ -234,4 +225,35 @@ function wire(container, ano) {
       else if (sel.startsWith('cat')) removerCategorias(ids);
     }
   });
+
+  // ---- Reordenar por arrastar (drag & drop) — só dentro da mesma tabela (data-tbl) ----
+  let dragId = null, dragTbl = null;
+  const cleanup = () => { dragId = null; dragTbl = null; container.querySelectorAll('.dragging,.drop-before,.drop-after').forEach(r => r.classList.remove('dragging', 'drop-before', 'drop-after')); };
+  container.addEventListener('dragstart', (ev) => {
+    const h = ev.target.closest('[data-drag]'); if (!h) return;
+    dragId = h.dataset.drag; dragTbl = h.dataset.tbl;
+    const tr = container.querySelector(`tr[data-row="${CSS.escape(dragId)}"]`); if (tr) tr.classList.add('dragging');
+    ev.dataTransfer.effectAllowed = 'move';
+  });
+  container.addEventListener('dragover', (ev) => {
+    if (!dragId) return;
+    const tr = ev.target.closest('tr[data-row]'); if (!tr || tr.dataset.tbl !== dragTbl) return;
+    ev.preventDefault();
+    container.querySelectorAll('tr.drop-before,tr.drop-after').forEach(r => r.classList.remove('drop-before', 'drop-after'));
+    const rect = tr.getBoundingClientRect();
+    tr.classList.add((ev.clientY - rect.top) < rect.height / 2 ? 'drop-before' : 'drop-after');
+  });
+  container.addEventListener('drop', (ev) => {
+    if (!dragId) return;
+    const tr = ev.target.closest('tr[data-row]'); if (!tr || tr.dataset.tbl !== dragTbl) { cleanup(); return; }
+    ev.preventDefault();
+    const before = tr.classList.contains('drop-before');
+    const targetId = tr.dataset.row;
+    if (targetId !== dragId) {
+      if (before) doReorder(dragTbl, dragId, targetId);
+      else { const next = tr.nextElementSibling; doReorder(dragTbl, dragId, next && next.dataset.row ? next.dataset.row : null); }
+    }
+    cleanup();
+  });
+  container.addEventListener('dragend', cleanup);
 }

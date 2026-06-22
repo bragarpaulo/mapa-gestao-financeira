@@ -41,32 +41,67 @@ function closeNav() { sidebar.classList.remove('open'); overlay.classList.remove
 document.getElementById('nav-toggle').addEventListener('click', openNav);
 overlay.addEventListener('click', closeNav);
 
-// ---- Tema ----
-function applyTema() { document.documentElement.dataset.theme = getTema(); }
+// Logo GPR (gradiente verde→azul) — usada no topo do mobile. Ícone de empresa (prédio) p/ o seletor.
+const LOGO_SVG = `<svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs><linearGradient id="gprlg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1D4ED8"/><stop offset="1" stop-color="#16A34A"/></linearGradient></defs><rect width="32" height="32" rx="8" fill="url(#gprlg)"/><path d="M8 22V14M14 22V10M20 22V16" stroke="#fff" stroke-width="2.4" stroke-linecap="round" fill="none"/><path d="M7 12l6-5 4 3 5-5" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+const PREDIO_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="3" width="11" height="18" rx="1"/><path d="M15 8h4a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1h-4"/><path d="M8 7h3M8 11h3M8 15h3"/></svg>`;
 
-// ---- Topbar: seletor de empresa (grande) + ⚙ + tema ----
+// ---- Tema ----
+function applyTema() {
+  document.documentElement.dataset.theme = getTema();
+  const tb = document.getElementById('btn-tema');
+  if (tb) tb.textContent = getTema() === 'dark' ? '☀️ Tema claro' : '🌙 Tema escuro';
+}
+function toggleTema() { setTema(getTema() === 'dark' ? 'light' : 'dark'); applyTema(); }
+
+// ---- Topbar: logo (mobile) + seletor de empresa (dropdown próprio) + ⚙ + tema ----
 function renderTopbar() {
   const comps = getCompanies(), activeC = getActiveId();
-  const compOpts = comps.map(c => `<option value="${c.id}" ${c.id === activeC ? 'selected' : ''}>${esc(c.nome || '(sem nome)')}</option>`).join('');
+  const active = comps.find(c => c.id === activeC) || comps[0];
+  const itens = comps.map(c => `<button class="emp-item ${c.id === activeC ? 'active' : ''}" data-emp-id="${c.id}" role="option" aria-selected="${c.id === activeC}"><span class="emp-ico">${PREDIO_SVG}</span><span class="emp-item-nome">${esc(c.nome || '(sem nome)')}</span>${c.id === activeC ? '<span class="emp-check">✓</span>' : ''}</button>`).join('');
   empresaPickerEl.innerHTML = `
-    <button id="logo-home" class="icon-btn logo-home" title="Ir para o Início" aria-label="Início">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V14M10 20V10M16 20V13"/><path d="M3 10l6-5 4 3 6-6"/><path d="M19 2h3v3"/></svg>
-    </button>
-    <select id="empresa-sel" class="empresa-select" title="Empresa ativa">${compOpts}<option value="__new__">➕ Nova empresa…</option></select>
+    <button id="logo-home" class="logo-home" title="Ir para o Início" aria-label="Início">${LOGO_SVG}</button>
+    <div class="emp-dd" id="emp-dd">
+      <button class="emp-trigger" id="emp-trigger" aria-haspopup="listbox" aria-expanded="false">
+        <span class="emp-ico">${PREDIO_SVG}</span>
+        <span class="emp-nome">${esc(active ? (active.nome || '(sem nome)') : 'Empresa')}</span>
+        <span class="emp-caret">▾</span>
+      </button>
+      <div class="emp-panel" id="emp-panel" role="listbox" hidden>
+        <div class="emp-panel-head">Trocar empresa</div>
+        <div class="emp-list">${itens}</div>
+        <button class="emp-add" data-emp-add>＋ Adicionar empresa</button>
+      </div>
+    </div>
     <button id="empresa-cfg" class="icon-btn" title="Configurar empresa"><span class="ico-glyph">⚙</span></button>`;
   topRightEl.innerHTML = `<button id="theme-toggle" class="icon-btn" title="Alternar tema claro/escuro">${getTema() === 'dark' ? '☀️' : '🌙'}</button>`;
 }
 
-empresaPickerEl.addEventListener('change', (e) => {
-  if (e.target.id !== 'empresa-sel') return;
-  if (e.target.value === '__new__') { addEmpresa(); location.hash = '#cadastro'; }
-  else setActiveEmpresa(e.target.value);
-});
+function fecharEmpDd() {
+  const dd = empresaPickerEl.querySelector('#emp-dd'); if (!dd) return;
+  dd.classList.remove('open');
+  const t = dd.querySelector('#emp-trigger'); if (t) t.setAttribute('aria-expanded', 'false');
+  const p = dd.querySelector('#emp-panel'); if (p) p.hidden = true;
+}
 empresaPickerEl.addEventListener('click', (e) => {
   if (e.target.closest('#logo-home')) { location.hash = '#inicio'; return; }
-  if (e.target.closest('#empresa-cfg')) location.hash = '#cadastro';
+  if (e.target.closest('#empresa-cfg')) { location.hash = '#cadastro'; return; }
+  const trigger = e.target.closest('#emp-trigger');
+  if (trigger) {
+    const dd = empresaPickerEl.querySelector('#emp-dd');
+    const abrir = !dd.classList.contains('open');
+    dd.classList.toggle('open', abrir);
+    trigger.setAttribute('aria-expanded', String(abrir));
+    dd.querySelector('#emp-panel').hidden = !abrir;
+    return;
+  }
+  const item = e.target.closest('[data-emp-id]');
+  if (item) { fecharEmpDd(); setActiveEmpresa(item.dataset.empId); return; }   // re-renderiza topbar
+  if (e.target.closest('[data-emp-add]')) { fecharEmpDd(); addEmpresa(); location.hash = '#cadastro'; return; }
 });
-topRightEl.addEventListener('click', (e) => { if (e.target.closest('#theme-toggle')) { setTema(getTema() === 'dark' ? 'light' : 'dark'); applyTema(); } });
+// Fecha o dropdown ao clicar fora dele.
+document.addEventListener('click', (e) => { if (!e.target.closest('#emp-dd')) fecharEmpDd(); });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') fecharEmpDd(); });
+topRightEl.addEventListener('click', (e) => { if (e.target.closest('#theme-toggle')) toggleTema(); });
 
 // ---- Cabeçalho de PERÍODO global (anos + meses em chips), sticky abaixo do topbar ----
 const SEM_PERIODO = new Set(['cadastro']);   // rotas que não usam filtro de período
@@ -191,5 +226,6 @@ window.__MGF = { renderView, getState };
 window.__store = store;
 window.__import = importmod;
 
+document.getElementById('btn-tema').addEventListener('click', toggleTema);
 document.getElementById('btn-restaurar').addEventListener('click', () => { if (confirm('Restaurar os dados de demonstração? Substitui os dados atuais.')) resetDemo(); });
 document.getElementById('btn-limpar').addEventListener('click', () => { if (confirm('Apagar os dados da empresa atual e começar do zero?')) clearAll(); });
