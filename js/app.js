@@ -227,5 +227,5 @@ window.__store = store;
 window.__import = importmod;
 
 document.getElementById('btn-tema').addEventListener('click', toggleTema);
-document.getElementById('btn-restaurar').addEventListener('click', () => { if (confirm('Restaurar os dados de demonstração? Substitui os dados atuais.')) resetDemo(); });
-document.getElementById('btn-limpar').addEventListener('click', () => { if (confirm('Apagar os dados da empresa atual e começar do zero?')) clearAll(); });
+document.getElementById('btn-restaurar').addEventListener('click', () => { if (confirm('Restaurar a demonstração? Isso substitui TUDO pela "Empresa Demonstrativa" (2025 + 2026).')) resetDemo(); });
+document.getElementById('btn-limpar').addEventListener('click', () => { if (confirm('Apagar TODAS as empresas e dados e começar do zero?')) clearAll(); });

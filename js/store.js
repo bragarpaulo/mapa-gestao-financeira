@@ -190,12 +190,14 @@ export function removerEmpresa(id) {
   if (!root.companies.find(c => c.id === root.activeId)) root.activeId = root.companies[0].id;
   save(); emit();
 }
-export function resetDemo() { root = demoRoot(); save(); emit(); }
+// Restaurar demo: descarta TUDO e recria a única "Empresa Demonstrativa", no período vigente.
+export function resetDemo() { root = demoRoot(); aplicarVigente(active()); save(); emit(); }
+// Limpar tudo: apaga TODAS as empresas e dados, deixando uma única empresa em branco.
 export function clearAll() {
-  const a = active();
-  const fresh = emptyCompany(a.ui.anoAtivo, a.empresa.nome);
-  fresh.id = a.id; fresh.empresa.cnpj = a.empresa.cnpj;
-  root.companies[root.companies.findIndex(c => c.id === a.id)] = fresh; save(); emit();
+  const c = emptyCompany(anoCorrente(), 'Minha Empresa');
+  root = { companies: [c], activeId: c.id };
+  aplicarVigente(active());
+  save(); emit();
 }
 
 // ---- Anos (multi-ano) ----------------------------------------------------

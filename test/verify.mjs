@@ -57,22 +57,24 @@ for (let i = 0; i < 12; i++) {
 check('Cascata Receita Líq→Lucro Bruto→EBITDA→Lucro antes IR→Lucro Líquido bate em todos os meses', cascataOK);
 check('Total de Despesas = soma dos grupos em todos os meses', despTotOK);
 
-// Entradas DRE = soma de TODAS as vendas (todas em 2026)
-const totalVendas = s.vendas.reduce((a, v) => a + v.valor, 0);
-check('Entradas DRE = soma de todas as vendas', approx(sum(dre.entradas), totalVendas), `(${brl(sum(dre.entradas))} vs ${brl(totalVendas)})`);
+// Demo é multi-ano (2025 + 2026); DRE/DFC calculam por ano ativo → escopar os totais ao ano.
+const yV = (d) => String(d || '').slice(0, 4) === String(ano);
+// Entradas DRE (competência) = soma das vendas do ano (por dataVenda)
+const totalVendas = s.vendas.filter(v => yV(v.dataVenda)).reduce((a, v) => a + v.valor, 0);
+check('Entradas DRE = soma das vendas do ano', approx(sum(dre.entradas), totalVendas), `(${brl(sum(dre.entradas))} vs ${brl(totalVendas)})`);
 
-// DFC entradas (caixa) = soma das vendas Concluído
+// DFC entradas (caixa) = soma das vendas Concluído do ano
 const vd = vendasDerivadas(s);
-const vendasConcluido = vd.filter(v => v.status === 'Concluído').reduce((a, v) => a + v.valor, 0);
+const vendasConcluido = vd.filter(v => v.status === 'Concluído' && yV(v.dataVenda)).reduce((a, v) => a + v.valor, 0);
 check('Entradas DFC (caixa) = soma das vendas Concluído', approx(sum(dfc.entradas), vendasConcluido), `(${brl(sum(dfc.entradas))} vs ${brl(vendasConcluido)})`);
 
-// DFC despesas (caixa) = só despesas pagas
+// DFC despesas (caixa) = só despesas pagas no ano
 const dd = despesasDerivadas(s);
-const despPagasTotal = dd.filter(d => d.pago).reduce((a, d) => a + d.valor, 0);
+const despPagasTotal = dd.filter(d => d.pago && yV(d.dataPagamentoReal)).reduce((a, d) => a + d.valor, 0);
 check('Despesas DFC (caixa) = soma das despesas pagas', approx(Math.abs(sum(dfc.totalDespesas)), despPagasTotal), `(${brl(Math.abs(sum(dfc.totalDespesas)))} vs ${brl(despPagasTotal)})`);
 
-// DRE despesas (competência) = TODAS as despesas (pagas ou não)
-const despTotalComp = s.despesas.reduce((a, d) => a + d.valor, 0);
+// DRE despesas (competência) = TODAS as despesas do ano (mesCompetencia)
+const despTotalComp = s.despesas.filter(d => String(d.mesCompetencia || '').endsWith('/' + ano)).reduce((a, d) => a + d.valor, 0);
 check('Despesas DRE (competência) = soma de TODAS as despesas', approx(Math.abs(sum(dre.totalDespesas)), despTotalComp), `(${brl(Math.abs(sum(dre.totalDespesas)))} vs ${brl(despTotalComp)})`);
 check('Despesa caixa (DFC) ≤ despesa competência (DRE)', Math.abs(sum(dfc.totalDespesas)) <= Math.abs(sum(dre.totalDespesas)) + 0.5);
 
