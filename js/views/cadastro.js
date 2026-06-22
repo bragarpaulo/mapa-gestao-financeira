@@ -140,12 +140,11 @@ export function render(container) {
     </div>
 
     <details class="card card-pad cad-section cad-import">
-      <summary>📥 Importar lançamentos por planilha</summary>
-      <div class="hint" style="margin:6px 0 10px">Baixe o modelo, preencha as abas de Vendas/Despesas e importe. Cria anos, canais, contas e recebedores automaticamente. Aceita o modelo simplificado ou o completo.</div>
+      <summary>📥 Importar dados por planilha</summary>
+      <div class="hint" style="margin:6px 0 10px">Baixe o modelo, preencha as abas (Empresa, Contas, Canais e Metas, Categorias, Vendas e Despesas) e importe. Ao subir, é criada uma <strong>empresa nova</strong> com todos os dados. Clientes, produtos e recebedores são cadastrados automaticamente.</div>
       <div class="card-head-actions">
-        <button class="btn btn-sm" data-action="baixar-modelo" data-tipo="simples">⬇ Modelo simplificado</button>
-        <button class="btn btn-sm" data-action="baixar-modelo" data-tipo="completo">⬇ Modelo completo</button>
-        <button class="btn btn-primary btn-sm" data-action="importar">📥 Importar planilha</button>
+        <button class="btn btn-sm" data-action="baixar-modelo">⬇ Baixar modelo</button>
+        <button class="btn btn-primary btn-sm" data-action="importar">📥 Importar planilha preenchida</button>
         <input type="file" id="import-file" accept=".xlsx,.xls" style="display:none">
       </div>
     </details>`;
@@ -177,7 +176,8 @@ function wire(container, ano) {
   container.addEventListener('change', (ev) => {
     const t = ev.target;
     if (t.id === 'import-file') {
-      if (t.files && t.files[0]) importarArquivo(t.files[0], (r) => alert(`Importação concluída!\n\n${r.vendas} venda(s) e ${r.despesas} despesa(s).\nAnos: ${r.anos.join(', ') || '—'}\nCriados: ${r.canais} canal(is), ${r.contas} conta(s), ${r.fornecedores} recebedor(es), ${r.categorias} categoria(s).`));
+      if (t.files && t.files[0]) importarArquivo(t.files[0], (r) => alert(`Empresa "${r.empresa}" criada!\n\n${r.vendas} venda(s) e ${r.despesas} despesa(s).\nAnos: ${r.anos.join(', ') || '—'}\nCriados: ${r.canais} canal(is), ${r.contas} conta(s), ${r.fornecedores} recebedor(es), ${r.categorias} categoria(s).`));
+      t.value = '';
       return;
     }
     if (t.dataset.emp) setEmpresaCampo(t.dataset.emp, t.value);
@@ -208,7 +208,7 @@ function wire(container, ano) {
     else if (action === 'rm-cli') removerCliente(id);
     else if (action === 'add-prod') { const c = addProduto({ silent: true }); appendRow(container, '#tb-produtos', produtoRow(c), c.id); }
     else if (action === 'rm-prod') removerProduto(id);
-    else if (action === 'baixar-modelo') baixarModelo(b.dataset.tipo || 'simples');
+    else if (action === 'baixar-modelo') baixarModelo();
     else if (action === 'importar') container.querySelector('#import-file').click();
     else if (action === 'add-ano') {
       const a = prompt('Adicionar qual ano?', String(ano + 1)); if (!a) return;

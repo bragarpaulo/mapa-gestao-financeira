@@ -182,6 +182,8 @@ export function setActiveEmpresa(id) { if (root.companies.find(c => c.id === id)
 function aplicarVigente(c) { if (!c || !c.ui) return; const y = anoCorrente(); c.ui.anosSel = [y]; c.ui.anoAtivo = y; c.ui.periodoMeses = [mesCorrente()]; }
 export function aplicarPeriodoVigente() { update(s => aplicarVigente(s), { silent: true }); }
 export function addEmpresa() { const c = emptyCompany(active()?.ui.anoAtivo || anoCorrente(), 'Nova Empresa'); root.companies.push(c); root.activeId = c.id; save(); emit(); }
+// Cria uma empresa vazia (com categorias padrão) e a torna ativa. Usado pela importação por planilha.
+export function addEmpresaVazia(nome, ano) { const c = emptyCompany(ano || anoCorrente(), nome || 'Empresa importada'); root.companies.push(c); root.activeId = c.id; save(); emit(); return c.id; }
 export function removerEmpresa(id) {
   root.companies = root.companies.filter(c => c.id !== id);
   if (!root.companies.length) root.companies.push(emptyCompany());
