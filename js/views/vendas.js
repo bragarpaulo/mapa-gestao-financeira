@@ -4,7 +4,7 @@ import { getState, addVenda, duplicarVenda, removerVenda, removerVendas, remover
 import { vendaDerivada } from '../calc.js';
 import { STATUS_VENDA } from '../config.js';
 import { pageHead, options, badgeVenda, moneyInput, fmtMoneyInput, statusFilterChips, attachAutocomplete, openRecPopover, openChoicePopover } from '../ui.js';
-import { esc, num, fmtBRL0, norm, noPeriodo, anosSelecionados } from '../util.js';
+import { esc, num, fmtBRL0, fmtBRL, fmtData, norm, noPeriodo, anosSelecionados } from '../util.js';
 import { nomeRecorrencia } from '../recurrence.js';
 
 const ROWCLS = { [STATUS_VENDA.CONCLUIDO]: 'st-ok', [STATUS_VENDA.ATRASADO]: 'st-bad', [STATUS_VENDA.HOJE]: 'st-warn', [STATUS_VENDA.PREVISTO]: 'st-info' };
@@ -74,7 +74,7 @@ export function render(container) {
   if (filtro.status && filtro.status.length) linhas = linhas.filter(v => filtro.status.includes(v.status));
   if (filtro.busca) {
     const q = norm(filtro.busca);
-    linhas = linhas.filter(v => norm([v.pedido, v.produto, v.cliente, nomeCanal(v.canalId), nomeReceitaCat(v.categoriaReceitaId), nomeConta(v.contaId), v.dataVenda, v.dataVencimento, v.dataRecebimento, v.valor, v.status, v.obs].join(' ')).includes(q));
+    linhas = linhas.filter(v => norm([v.pedido, v.produto, v.cliente, v.parcela, nomeCanal(v.canalId), nomeReceitaCat(v.categoriaReceitaId), nomeConta(v.contaId), v.dataVenda, fmtData(v.dataVenda), v.mesVenda, v.dataVencimento, fmtData(v.dataVencimento), v.mesAnoRecebimento, v.dataRecebimento, fmtData(v.dataRecebimento), v.valor, fmtBRL(v.valor), v.status, v.obs].join(' ')).includes(q));
   }
   if (sort.campo) { const dir = sort.dir === 'asc' ? 1 : -1; linhas.sort((a, b) => { const x = sortKey(a, sort.campo), y = sortKey(b, sort.campo); return x < y ? -dir : x > y ? dir : 0; }); }
 

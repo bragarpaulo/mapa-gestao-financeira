@@ -4,7 +4,7 @@ import { getState, addDespesa, duplicarDespesa, removerDespesa, removerDespesas,
 import { despesaDerivada } from '../calc.js';
 import { STATUS_DESPESA, FORMAS_PAGAMENTO, MESES } from '../config.js';
 import { pageHead, options, badgeDespesa, moneyInput, fmtMoneyInput, statusFilterChips, attachAutocomplete, openRecPopover, openChoicePopover } from '../ui.js';
-import { esc, num, fmtBRL0, norm, anosSelecionados, chavesAno, anoAtivo } from '../util.js';
+import { esc, num, fmtBRL0, fmtBRL, fmtData, norm, anosSelecionados, chavesAno, anoAtivo } from '../util.js';
 import { nomeRecorrencia } from '../recurrence.js';
 
 const ROWCLS = { [STATUS_DESPESA.PAGO]: 'st-ok', [STATUS_DESPESA.ATRASADO]: 'st-bad', [STATUS_DESPESA.HOJE]: 'st-warn', [STATUS_DESPESA.APAGAR]: 'st-info' };
@@ -86,7 +86,7 @@ export function render(container) {
   if (filtro.status && filtro.status.length) linhas = linhas.filter(d => filtro.status.includes(d.status));
   if (filtro.busca) {
     const q = norm(filtro.busca);
-    linhas = linhas.filter(d => norm([d.descricao, d.fornecedor, nomeCategoria(d.categoriaId), nomeConta(d.contaId), d.formaPagamento, d.mesCompetencia, d.dataVencimento, d.dataPagamentoReal, d.valor, d.status, d.obs].join(' ')).includes(q));
+    linhas = linhas.filter(d => norm([d.descricao, d.fornecedor, d.parcela, nomeCategoria(d.categoriaId), nomeConta(d.contaId), d.formaPagamento, d.mesCompetencia, d.dataVencimento, fmtData(d.dataVencimento), d.dataPagamentoReal, fmtData(d.dataPagamentoReal), d.valor, fmtBRL(d.valor), d.status, d.obs].join(' ')).includes(q));
   }
   if (sort.campo) { const dir = sort.dir === 'asc' ? 1 : -1; linhas.sort((a, b) => { const x = sortKey(a, sort.campo), y = sortKey(b, sort.campo); return x < y ? -dir : x > y ? dir : 0; }); }
 
