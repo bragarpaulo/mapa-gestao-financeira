@@ -75,10 +75,11 @@ export const PERIODOS_RECORRENCIA = [
 ];
 
 // Rótulos de status (idênticos à planilha).
+// Mesmos rótulos das despesas (mesma lógica em todas as telas): Pago / Vence Hoje / À pagar / Atrasado.
 export const STATUS_VENDA = {
-  CONCLUIDO: 'Concluído',
-  HOJE: 'Previsto Para Hoje',
-  PREVISTO: 'Previsto',
+  CONCLUIDO: 'Pago',
+  HOJE: 'Vence Hoje',
+  PREVISTO: 'À pagar',
   ATRASADO: 'Atrasado',
 };
 export const STATUS_DESPESA = {

@@ -1,7 +1,7 @@
 // Verificação do motor de cálculo contra invariantes da planilha.
 // Roda: node test/verify.mjs   (a partir da pasta do projeto)
 import { demoData } from '../js/seed.js';
-import { DEFAULT_CATEGORIES, DEFAULT_RECEITA_CATEGORIES } from '../js/config.js';
+import { DEFAULT_CATEGORIES, DEFAULT_RECEITA_CATEGORIES, STATUS_VENDA } from '../js/config.js';
 import {
   calcDRE, calcDFC, calcFluxo, calcDashboard, calcMetaxReal, calcPlanxReal, vendasDerivadas, despesasDerivadas, calcSeriesMultiAno, calcVendasPorChave,
 } from '../js/calc.js';
@@ -65,8 +65,8 @@ check('Entradas DRE = soma das vendas do ano', approx(sum(dre.entradas), totalVe
 
 // DFC entradas (caixa) = soma das vendas Concluído do ano
 const vd = vendasDerivadas(s);
-const vendasConcluido = vd.filter(v => v.status === 'Concluído' && yV(v.dataVenda)).reduce((a, v) => a + v.valor, 0);
-check('Entradas DFC (caixa) = soma das vendas Concluído', approx(sum(dfc.entradas), vendasConcluido), `(${brl(sum(dfc.entradas))} vs ${brl(vendasConcluido)})`);
+const vendasConcluido = vd.filter(v => v.status === STATUS_VENDA.CONCLUIDO && yV(v.dataVenda)).reduce((a, v) => a + v.valor, 0);
+check('Entradas DFC (caixa) = soma das vendas recebidas', approx(sum(dfc.entradas), vendasConcluido), `(${brl(sum(dfc.entradas))} vs ${brl(vendasConcluido)})`);
 
 // DFC despesas (caixa) = só despesas pagas no ano
 const dd = despesasDerivadas(s);
@@ -98,8 +98,8 @@ console.log('  Vendas por status:', statusCount);
 const dStatus = {};
 dd.forEach(d => { dStatus[d.status] = (dStatus[d.status] || 0) + 1; });
 console.log('  Despesas por status:', dStatus);
-check('Existe venda Concluído', (statusCount['Concluído'] || 0) > 0);
-check('Existem status previstos/atrasados em vendas', (statusCount['Previsto'] || 0) + (statusCount['Atrasado'] || 0) + (statusCount['Previsto Para Hoje'] || 0) > 0);
+check('Existe venda recebida (Pago)', (statusCount[STATUS_VENDA.CONCLUIDO] || 0) > 0);
+check('Existem status previstos/atrasados em vendas', (statusCount[STATUS_VENDA.PREVISTO] || 0) + (statusCount[STATUS_VENDA.ATRASADO] || 0) + (statusCount[STATUS_VENDA.HOJE] || 0) > 0);
 
 console.log('\n== DASHBOARD (Total Ano) ==');
 const dashAno = calcDashboard({ ...s, ui: { ...s.ui, periodoMeses: [] } });
