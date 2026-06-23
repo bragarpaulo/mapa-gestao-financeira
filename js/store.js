@@ -68,10 +68,11 @@ function migrarCompany(c) {
   if (!Array.isArray(c.clientes)) c.clientes = [];
   if (!Array.isArray(c.produtos)) c.produtos = [];
 
-  // vendas: garantir contaId (banco de recebimento)
-  c.vendas.forEach(v => { if (v.contaId === undefined) v.contaId = ''; });
-  // despesas: migrar pago+dataPagamento -> dataVencimento + dataPagamentoReal
+  // vendas: garantir contaId (banco de recebimento) + curar id ausente (bug antigo da recorrência: gerava id undefined)
+  c.vendas.forEach(v => { if (!v.id) v.id = uid('v'); if (v.contaId === undefined) v.contaId = ''; });
+  // despesas: migrar pago+dataPagamento -> dataVencimento + dataPagamentoReal; curar id ausente
   c.despesas.forEach(d => {
+    if (!d.id) d.id = uid('d');
     if (d.dataVencimento === undefined) d.dataVencimento = d.dataPagamento || '';
     if (d.dataPagamentoReal === undefined) d.dataPagamentoReal = d.pago ? (d.dataPagamento || '') : '';
     if (d.contaId === undefined) d.contaId = '';
@@ -257,7 +258,8 @@ function moveById(arr, fromId, toId) {
 // ---- CRUD: Vendas --------------------------------------------------------
 export function novaVenda(base = {}) {
   const s = active();
-  return { id: uid('v'), dataVenda: '', pedido: '', canalId: s.canais[0]?.id || '', categoriaReceitaId: s.receitaCategorias[0]?.id || 'rec_bruta', produto: '', cliente: '', parcela: '', valor: 0, dataVencimento: '', dataRecebimento: '', contaId: s.contas[0]?.id || '', obs: '', recorrenciaId: '', recorrenciaPeriodo: '', recorrenciaFim: '', ...base };
+  // `id` por ÚLTIMO com fallback: assim um base com `id: undefined` (ex.: recorrência) não zera o id.
+  return { dataVenda: '', pedido: '', canalId: s.canais[0]?.id || '', categoriaReceitaId: s.receitaCategorias[0]?.id || 'rec_bruta', produto: '', cliente: '', parcela: '', valor: 0, dataVencimento: '', dataRecebimento: '', contaId: s.contas[0]?.id || '', obs: '', recorrenciaId: '', recorrenciaPeriodo: '', recorrenciaFim: '', ...base, id: base.id || uid('v') };
 }
 export function addVenda(base, opts) { let nova; update(s => { nova = novaVenda(base); s.vendas.push(nova); }, opts); return nova; }
 export function addVendasLote(lista) { update(s => { for (const v of lista) s.vendas.push(novaVenda(v)); }); }
@@ -278,7 +280,8 @@ export function setVendaCampo(id, campo, valor, opts) { update(s => { const v = 
 // ---- CRUD: Despesas ------------------------------------------------------
 export function novaDespesa(base = {}) {
   const s = active();
-  return { id: uid('d'), dataVencimento: '', mesCompetencia: '', descricao: '', categoriaId: s.categorias[0]?.id || '', valor: 0, fornecedor: '', contaId: s.contas[0]?.id || '', formaPagamento: 'PIX', dataPagamentoReal: '', obs: '', recorrenciaId: '', recorrenciaPeriodo: '', recorrenciaFim: '', ...base };
+  // `id` por ÚLTIMO com fallback: assim um base com `id: undefined` (ex.: recorrência) não zera o id.
+  return { dataVencimento: '', mesCompetencia: '', descricao: '', categoriaId: s.categorias[0]?.id || '', valor: 0, fornecedor: '', contaId: s.contas[0]?.id || '', formaPagamento: 'PIX', dataPagamentoReal: '', obs: '', recorrenciaId: '', recorrenciaPeriodo: '', recorrenciaFim: '', ...base, id: base.id || uid('d') };
 }
 export function addDespesa(base, opts) { let nova; update(s => { nova = novaDespesa(base); s.despesas.push(nova); }, opts); return nova; }
 export function addDespesasLote(lista) { update(s => { for (const d of lista) s.despesas.push(novaDespesa(d)); }); }
