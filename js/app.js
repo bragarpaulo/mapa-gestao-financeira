@@ -170,7 +170,7 @@ function currentRoute() {
 // Barra de rolagem horizontal "fixa no rodapé da janela" p/ tabelas largas: scrollbar CUSTOMIZADO
 // (trilho .hbar + polegar .hthumb) — sempre visível (o overlay nativo do macOS some quando parado).
 function wireStickyHScroll(container) {
-  container.querySelectorAll('.table-wrap:not(.tbl-frozen)').forEach(tw => {
+  container.querySelectorAll('.table-wrap').forEach(tw => {
     const tabela = tw.querySelector('table'); if (!tabela) return;
     const bar = document.createElement('div'); bar.className = 'hbar';
     const thumb = document.createElement('div'); thumb.className = 'hthumb';

@@ -180,6 +180,10 @@ tr.st-ok > td { background: #f4fbf6; }
 /* Cabeçalho fixo (congela ao rolar a tabela longa) */
 .tbl-frozen { max-height: calc(100vh - 240px); overflow: auto; }
 .tbl-frozen thead th { position: sticky; top: 0; z-index: 2; }
+/* Esconde a barra horizontal NATIVA do box (usamos a .hbar custom fixa no rodapé da janela); mantém a vertical estilizada. */
+.tbl-frozen::-webkit-scrollbar { height: 0; width: 10px; }
+.tbl-frozen::-webkit-scrollbar-thumb { background: var(--muted-2); border-radius: 5px; }
+.tbl-frozen::-webkit-scrollbar-track { background: transparent; }
 
 /* ---- Badges ---- */
 .badge { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 11.5px; font-weight: 600; white-space: nowrap; }

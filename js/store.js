@@ -281,7 +281,7 @@ export function setVendaCampo(id, campo, valor, opts) { update(s => { const v = 
 export function novaDespesa(base = {}) {
   const s = active();
   // `id` por ÚLTIMO com fallback: assim um base com `id: undefined` (ex.: recorrência) não zera o id.
-  return { dataVencimento: '', mesCompetencia: '', descricao: '', categoriaId: s.categorias[0]?.id || '', valor: 0, fornecedor: '', contaId: s.contas[0]?.id || '', formaPagamento: 'PIX', dataPagamentoReal: '', obs: '', recorrenciaId: '', recorrenciaPeriodo: '', recorrenciaFim: '', ...base, id: base.id || uid('d') };
+  return { dataVencimento: '', mesCompetencia: '', descricao: '', categoriaId: s.categorias[0]?.id || '', valor: 0, parcela: '', fornecedor: '', contaId: s.contas[0]?.id || '', formaPagamento: 'PIX', dataPagamentoReal: '', obs: '', recorrenciaId: '', recorrenciaPeriodo: '', recorrenciaFim: '', ...base, id: base.id || uid('d') };
 }
 export function addDespesa(base, opts) { let nova; update(s => { nova = novaDespesa(base); s.despesas.push(nova); }, opts); return nova; }
 export function addDespesasLote(lista) { update(s => { for (const d of lista) s.despesas.push(novaDespesa(d)); }); }
@@ -309,11 +309,13 @@ export function aplicarRecorrenciaDespesa(id, periodo, dataFim) {
     // re-aplicar é idempotente: limpa as parcelas antigas do MESMO grupo (mantém a âncora)
     s.despesas = s.despesas.filter(x => x.id === d.id || x.recorrenciaId !== recId);
     d.recorrenciaId = recId; d.recorrenciaPeriodo = periodo; d.recorrenciaFim = dataFim;
+    if (!d.mesCompetencia) d.mesCompetencia = mesAno(d.dataVencimento);   // âncora: competência = mês do vencimento
+    if (!d.parcela) d.parcela = '1';   // âncora = parcela 1; parcelas seguintes numeradas 2, 3…
     // não duplica: pula um mês que já tenha uma despesa equivalente (mesma descrição+categoria+vencimento)
     const jaExiste = (iso) => s.despesas.some(x => x.id !== d.id && x.dataVencimento === iso && norm(x.descricao) === norm(d.descricao) && x.categoriaId === d.categoriaId);
-    let iso = addMeses(d.dataVencimento, passo), guard = 0;
+    let iso = addMeses(d.dataVencimento, passo), guard = 0, n = 1;
     while (iso && parseISO(iso) <= fim && guard++ < 600) {
-      if (!jaExiste(iso)) s.despesas.push(novaDespesa({ ...d, id: undefined, dataVencimento: iso, mesCompetencia: mesAno(iso), dataPagamentoReal: '', recorrenciaId: recId, recorrenciaPeriodo: periodo, recorrenciaFim: dataFim }));
+      if (!jaExiste(iso)) { n++; s.despesas.push(novaDespesa({ ...d, id: undefined, dataVencimento: iso, mesCompetencia: mesAno(iso), dataPagamentoReal: '', parcela: String(n), recorrenciaId: recId, recorrenciaPeriodo: periodo, recorrenciaFim: dataFim })); }
       iso = addMeses(iso, passo);
     }
   });
@@ -327,6 +329,7 @@ export function aplicarRecorrenciaVenda(id, periodo, dataFim) {
     const recId = v.recorrenciaId || uid('rec');
     s.vendas = s.vendas.filter(x => x.id === v.id || x.recorrenciaId !== recId);
     v.recorrenciaId = recId; v.recorrenciaPeriodo = periodo; v.recorrenciaFim = dataFim;
+    if (!v.dataVencimento) v.dataVencimento = baseData;   // parcela 1 (âncora) ganha vencimento = data do cadastro
     if (!v.parcela) v.parcela = '1';   // âncora = parcela 1; parcelas seguintes numeradas 2, 3…
     // Parcelas da MESMA venda: a data da venda (e o mês) ficam fixas; só o vencimento avança.
     const jaExiste = (iso) => s.vendas.some(x => x.id !== v.id && x.dataVencimento === iso && norm(x.produto) === norm(v.produto) && x.canalId === v.canalId && norm(x.cliente) === norm(v.cliente));

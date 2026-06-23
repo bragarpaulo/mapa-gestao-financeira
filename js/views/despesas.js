@@ -18,7 +18,7 @@ function rowErro(id) {
   return `<tr data-id="${esc(id || '')}" class="st-bad">
     <td class="col-chk"><input type="checkbox" class="rowchk" value="${esc(id || '')}"></td>
     <td class="col-acoes nowrap"><button class="btn btn-sm btn-icon" title="Excluir linha inconsistente" data-action="rm" data-id="${esc(id || '')}">🗑</button></td>
-    <td colspan="11" class="empty">Linha com dados inconsistentes — clique 🗑 para remover.</td></tr>`;
+    <td colspan="12" class="empty">Linha com dados inconsistentes — clique 🗑 para remover.</td></tr>`;
 }
 function sortKey(l, campo) {
   if (campo === 'valor') return num(l.valor);
@@ -53,8 +53,9 @@ function rowHtml(d, s, compOpts) {
       <td><input type="date" data-id="${d.id}" data-campo="dataVencimento" value="${esc(d.dataVencimento)}"></td>
       <td><select data-id="${d.id}" data-campo="mesCompetencia">${options(compOpts, d.mesCompetencia, { placeholder: '—' })}</select></td>
       <td><input class="inp-flush" style="min-width:130px" data-id="${d.id}" data-campo="descricao" value="${esc(d.descricao)}"></td>
-      <td class="cat-cell"><select data-id="${d.id}" data-campo="categoriaId" style="min-width:160px">${options(s.categorias, d.categoriaId, { placeholder: '—' })}</select>${recBtn}</td>
+      <td><select data-id="${d.id}" data-campo="categoriaId" style="min-width:160px">${options(s.categorias, d.categoriaId, { placeholder: '—' })}</select></td>
       <td class="num">${moneyInput(d.valor, `data-id="${d.id}" data-campo="valor"`, 120)}</td>
+      <td class="cat-cell nowrap"><input class="inp-flush" style="width:56px" data-id="${d.id}" data-campo="parcela" value="${esc(d.parcela || '')}" placeholder="—">${recBtn}</td>
       <td><input class="inp-flush" style="min-width:120px" data-ac="fornecedor" data-id="${d.id}" data-campo="fornecedor" value="${esc(d.fornecedor)}" autocomplete="off"></td>
       <td><select data-id="${d.id}" data-campo="contaId">${options(s.contas, d.contaId, { placeholder: '—' })}</select></td>
       <td><select data-id="${d.id}" data-campo="formaPagamento">${options(FORMAS_PAGAMENTO.map(f => ({ id: f, nome: f })), d.formaPagamento)}</select></td>
@@ -94,7 +95,7 @@ export function render(container) {
   const addBtn = '<button class="btn btn-primary btn-sm" data-action="add">+ Adicionar linha</button>';
   const catChip = filtro.categoria ? `<button class="chip active" data-action="limpar-cat" title="Remover filtro">Categoria: ${esc(nomeCategoria(filtro.categoria))} ✕</button>` : '';
 
-  const rows = linhas.map(d => { try { return d._erro ? rowErro(d.id) : rowHtml(d, s, compOpts); } catch (e) { console.error('Erro ao renderizar despesa:', d, e); return rowErro(d.id); } }).join('') || `<tr class="row-vazia"><td colspan="13" class="empty">Nenhuma despesa no período. Ajuste o ano/mês no topo ou clique em “+ Adicionar linha”.</td></tr>`;
+  const rows = linhas.map(d => { try { return d._erro ? rowErro(d.id) : rowHtml(d, s, compOpts); } catch (e) { console.error('Erro ao renderizar despesa:', d, e); return rowErro(d.id); } }).join('') || `<tr class="row-vazia"><td colspan="14" class="empty">Nenhuma despesa no período. Ajuste o ano/mês no topo ou clique em “+ Adicionar linha”.</td></tr>`;
 
   container.innerHTML = `
     ${pageHead('Lançamento de Despesas', 'A linha em edição fica destacada e não se reordena enquanto você digita. Preencha "Pago em" e o status vira Pago. Clique no status p/ filtrar; no 🔁 p/ repetir.')}
@@ -115,12 +116,12 @@ export function render(container) {
           <th class="sortable" data-sortcol="dataVencimento">Vencimento${arrow('dataVencimento')}</th>
           <th class="sortable" data-sortcol="mesCompetencia">Mês Competência${arrow('mesCompetencia')}</th>
           <th>Descrição</th><th>Categoria</th><th class="num sortable" data-sortcol="valor">Valor${arrow('valor')}</th>
-          <th>Recebedor</th><th>Conta</th><th>Forma Pgto</th>
+          <th>Parcela</th><th>Recebedor</th><th>Conta</th><th>Forma Pgto</th>
           <th class="sortable" data-sortcol="dataPagamentoReal">Pago em${arrow('dataPagamentoReal')}</th>
           <th class="sortable" data-sortcol="status">Status${arrow('status')}</th><th>Obs</th>
         </tr></thead>
         <tbody>${rows}</tbody>
-        <tfoot><tr><td colspan="13">${addBtn}</td></tr></tfoot>
+        <tfoot><tr><td colspan="14">${addBtn}</td></tr></tfoot>
       </table>
     </div>`;
 
