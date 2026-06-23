@@ -36,12 +36,12 @@ function rowHtml(v, s) {
       <td class="derived" data-cell="mesVenda">${esc(v.mesVenda)}</td>
       <td><input class="inp-flush" style="width:80px" data-id="${v.id}" data-campo="pedido" value="${esc(v.pedido)}"></td>
       <td><select data-id="${v.id}" data-campo="canalId">${options(s.canais, v.canalId, { placeholder: '—' })}</select></td>
-      <td class="cat-cell"><select data-id="${v.id}" data-campo="categoriaReceitaId">${options(s.receitaCategorias, v.categoriaReceitaId)}</select>${recBtn}</td>
+      <td><select data-id="${v.id}" data-campo="categoriaReceitaId">${options(s.receitaCategorias, v.categoriaReceitaId)}</select></td>
       <td><input class="inp-flush" style="min-width:120px" data-ac="produto" data-id="${v.id}" data-campo="produto" value="${esc(v.produto)}" autocomplete="off"></td>
       <td><input class="inp-flush" style="min-width:120px" data-ac="cliente" data-id="${v.id}" data-campo="cliente" value="${esc(v.cliente)}" autocomplete="off"></td>
       <td><select data-id="${v.id}" data-campo="contaId">${options(s.contas, v.contaId, { placeholder: '—' })}</select></td>
       <td class="num">${moneyInput(v.valor, `data-id="${v.id}" data-campo="valor"`, 120)}</td>
-      <td><input class="inp-flush" style="width:64px" data-id="${v.id}" data-campo="parcela" value="${esc(v.parcela || '')}" placeholder="—"></td>
+      <td class="cat-cell nowrap"><input class="inp-flush" style="width:56px" data-id="${v.id}" data-campo="parcela" value="${esc(v.parcela || '')}" placeholder="—">${recBtn}</td>
       <td><input type="date" data-id="${v.id}" data-campo="dataVencimento" value="${esc(v.dataVencimento)}"></td>
       <td class="derived" data-cell="mesReceb">${esc(v.mesAnoRecebimento)}</td>
       <td><input type="date" data-id="${v.id}" data-campo="dataRecebimento" value="${esc(v.dataRecebimento)}"></td>

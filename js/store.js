@@ -135,7 +135,7 @@ export function flushLocal() {
   clearTimeout(_localTimer); _localTimer = null;
   try { localStorage.setItem(LS_KEY, JSON.stringify(root)); } catch (e) {}
 }
-export function save() { scheduleLocal(); scheduleCloud(); }
+export function save() { _lastLocalSave = Date.now(); scheduleLocal(); scheduleCloud(); }
 if (typeof window !== 'undefined') window.addEventListener('beforeunload', flushLocal);
 function emit() { listeners.forEach(fn => fn(getState())); }
 export function subscribe(fn) { listeners.add(fn); return () => listeners.delete(fn); }
@@ -160,7 +160,6 @@ function aplicarRemoto(remote) {
   remote.companies.forEach(migrarCompany);
   if (!remote.companies.find(c => c.id === remote.activeId)) remote.activeId = remote.companies[0].id;
   root = remote;
-  aplicarVigente(active());   // ao receber estado da nuvem, sempre volta ao ano/mês vigentes
   try { localStorage.setItem(LS_KEY, JSON.stringify(root)); } catch (e) {}
   emit();
 }
@@ -325,10 +324,12 @@ export function aplicarRecorrenciaVenda(id, periodo, dataFim) {
     const recId = v.recorrenciaId || uid('rec');
     s.vendas = s.vendas.filter(x => x.id === v.id || x.recorrenciaId !== recId);
     v.recorrenciaId = recId; v.recorrenciaPeriodo = periodo; v.recorrenciaFim = dataFim;
-    const jaExiste = (iso) => s.vendas.some(x => x.id !== v.id && (x.dataVencimento || x.dataVenda) === iso && norm(x.produto) === norm(v.produto) && x.canalId === v.canalId && norm(x.cliente) === norm(v.cliente));
-    let iso = addMeses(baseData, passo), guard = 0;
+    if (!v.parcela) v.parcela = '1';   // âncora = parcela 1; parcelas seguintes numeradas 2, 3…
+    // Parcelas da MESMA venda: a data da venda (e o mês) ficam fixas; só o vencimento avança.
+    const jaExiste = (iso) => s.vendas.some(x => x.id !== v.id && x.dataVencimento === iso && norm(x.produto) === norm(v.produto) && x.canalId === v.canalId && norm(x.cliente) === norm(v.cliente));
+    let iso = addMeses(baseData, passo), guard = 0, n = 1;
     while (iso && parseISO(iso) <= fim && guard++ < 600) {
-      if (!jaExiste(iso)) s.vendas.push(novaVenda({ ...v, id: undefined, dataVenda: iso, dataVencimento: iso, dataRecebimento: '', recorrenciaId: recId, recorrenciaPeriodo: periodo, recorrenciaFim: dataFim }));
+      if (!jaExiste(iso)) { n++; s.vendas.push(novaVenda({ ...v, id: undefined, dataVenda: v.dataVenda || iso, dataVencimento: iso, dataRecebimento: '', parcela: String(n), recorrenciaId: recId, recorrenciaPeriodo: periodo, recorrenciaFim: dataFim })); }
       iso = addMeses(iso, passo);
     }
   });
