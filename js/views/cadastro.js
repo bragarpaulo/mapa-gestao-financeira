@@ -41,7 +41,7 @@ function canalRow(c, ano) {
   return `<tr data-row="${c.id}" data-tbl="canais">
     ${handle(c.id, 'canais')}
     <td><input class="inp-flush" style="min-width:130px" data-canal-id="${c.id}" data-campo="nome" value="${esc(c.nome)}"></td>
-    ${metas}<td class="num"><strong>${fmtBRL0(tot)}</strong></td>
+    ${metas}<td class="num" data-canal-total><strong>${fmtBRL0(tot)}</strong></td>
     ${rmBtn('rm-canal', c.id)}
   </tr>`;
 }
@@ -107,7 +107,7 @@ export function render(container) {
       <div class="table-wrap table-flat"><table>
         <thead><tr><th></th><th>Banco / Caixa</th><th>Tipo</th><th class="num">Saldo</th><th>Data-base</th><th></th></tr></thead>
         <tbody id="tb-contas">${contasRows}</tbody>
-        <tfoot><tr class="row-total"><td colspan="3">Total</td><td class="num">${fmtBRL0(totalSaldo)}</td><td colspan="2"></td></tr></tfoot>
+        <tfoot><tr class="row-total"><td colspan="3">Total</td><td class="num" id="tot-contas">${fmtBRL0(totalSaldo)}</td><td colspan="2"></td></tr></tfoot>
       </table></div>
     </div>
 
@@ -166,6 +166,19 @@ function appendRow(container, tbodySel, html, id) {
   }
 }
 
+// Atualiza o Total da linha do canal sem re-render (após editar uma meta silenciosamente).
+function atualizarTotalCanal(container, canalId, ano) {
+  const c = getState().canais.find(x => x.id === canalId); if (!c) return;
+  const tr = container.querySelector(`tr[data-row="${CSS.escape(canalId)}"]`); if (!tr) return;
+  const cell = tr.querySelector('[data-canal-total] strong'); if (!cell) return;
+  cell.textContent = fmtBRL0(metaArr(c, ano).reduce((x, v) => x + num(v), 0));
+}
+// Atualiza o Total de saldos das contas (rodapé) sem re-render.
+function atualizarTotalContas(container) {
+  const el = container.querySelector('#tot-contas'); if (!el) return;
+  el.textContent = fmtBRL0(getState().contas.reduce((x, c) => x + num(c.saldo), 0));
+}
+
 function doReorder(tbl, fromId, toId) {
   if (tbl === 'contas') reordenarContas(fromId, toId);
   else if (tbl === 'canais') reordenarCanais(fromId, toId);
@@ -180,14 +193,17 @@ function wire(container, ano) {
       t.value = '';
       return;
     }
+    // Edições NÃO re-renderizam (silent): a tabela larga de metas não volta ao início e o foco/Tab seguem
+    // na mesma linha. Os totais derivados (canal e contas) são atualizados na própria célula, sem re-render.
+    // (Empresa fica NÃO-silent para o nome refletir no topo na hora.)
     if (t.dataset.emp) setEmpresaCampo(t.dataset.emp, t.value);
-    else if (t.dataset.contaId) { const campo = t.dataset.campo; setContaCampo(t.dataset.contaId, campo, campo === 'saldo' ? num(t.value) : t.value); }
-    else if (t.dataset.canalId && t.dataset.campo === 'nome') renomearCanal(t.dataset.canalId, t.value);
-    else if (t.dataset.canalId && t.dataset.mes !== undefined) setCanalMeta(t.dataset.canalId, ano, Number(t.dataset.mes), num(t.value));
-    else if (t.dataset.catId) renomearCategoria(t.dataset.catId, t.value);
-    else if (t.dataset.fornId) renomearFornecedor(t.dataset.fornId, t.value);
-    else if (t.dataset.cliId) renomearCliente(t.dataset.cliId, t.value);
-    else if (t.dataset.prodId) renomearProduto(t.dataset.prodId, t.value);
+    else if (t.dataset.contaId) { const campo = t.dataset.campo; setContaCampo(t.dataset.contaId, campo, campo === 'saldo' ? num(t.value) : t.value, { silent: true }); if (campo === 'saldo') atualizarTotalContas(container); }
+    else if (t.dataset.canalId && t.dataset.campo === 'nome') renomearCanal(t.dataset.canalId, t.value, { silent: true });
+    else if (t.dataset.canalId && t.dataset.mes !== undefined) { setCanalMeta(t.dataset.canalId, ano, Number(t.dataset.mes), num(t.value), { silent: true }); atualizarTotalCanal(container, t.dataset.canalId, ano); }
+    else if (t.dataset.catId) renomearCategoria(t.dataset.catId, t.value, { silent: true });
+    else if (t.dataset.fornId) renomearFornecedor(t.dataset.fornId, t.value, { silent: true });
+    else if (t.dataset.cliId) renomearCliente(t.dataset.cliId, t.value, { silent: true });
+    else if (t.dataset.prodId) renomearProduto(t.dataset.prodId, t.value, { silent: true });
   });
 
   container.addEventListener('click', (ev) => {
