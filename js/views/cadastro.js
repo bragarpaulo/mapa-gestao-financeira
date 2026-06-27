@@ -141,7 +141,7 @@ export function render(container) {
 
     <details class="card card-pad cad-section cad-import">
       <summary>📥 Importar dados por planilha</summary>
-      <div class="hint" style="margin:6px 0 10px">Baixe o modelo e preencha as <strong>4 abas</strong>: Vendas, Despesas, Orçamento de Despesa e Canais e Metas. Ao importar, é criada uma <strong>empresa nova</strong> (o nome vem do nome do arquivo). Contas, categorias, clientes, produtos e recebedores são criados automaticamente a partir dos lançamentos.</div>
+      <div class="hint" style="margin:6px 0 10px">Baixe o modelo e preencha <strong>Vendas</strong> e <strong>Despesas</strong>. Obrigatório apenas <strong>Data</strong> e <strong>Valor</strong> (em negrito no modelo) — o resto é opcional e você preenche depois aqui no app. Ao importar, é criada uma <strong>empresa nova</strong> (o nome vem do nome do arquivo); contas, categorias, clientes, produtos e recebedores são criados automaticamente.</div>
       <div class="card-head-actions">
         <button class="btn btn-sm" data-action="baixar-modelo">⬇ Baixar modelo</button>
         <button class="btn btn-primary btn-sm" data-action="importar">📥 Importar planilha preenchida</button>

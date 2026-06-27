@@ -2,14 +2,10 @@
 // A planilha traz tudo: Empresa, Contas, Canais e Metas, Categorias, Vendas e Despesas.
 // Ao importar, o sistema CRIA UMA EMPRESA NOVA com os dados (não mexe nas existentes).
 import { update, uid, addEmpresaVazia } from './store.js';
-import { FORMAS_PAGAMENTO, MESES, GRUPOS, DEFAULT_RECEITA_CATEGORIES } from './config.js';
+import { FORMAS_PAGAMENTO, MESES, GRUPOS } from './config.js';
 import { num } from './util.js';
 
 const MES_COL = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
-const COL_CANAIS = ['Canal', 'Ano', ...MES_COL];
-const COL_ORC = ['Categoria', 'Ano', ...MES_COL];
-const COL_VENDAS = ['Data da Venda', 'Nº do Pedido', 'Canal', 'Categoria de Receita', 'Produto/Pedido', 'Cliente', 'Parcela', 'Valor', 'Data de Vencimento', 'Data de Recebimento', 'Conta', 'Observações'];
-const COL_DESP = ['Data de Vencimento', 'Mês Competência', 'Descrição', 'Categoria', 'Valor', 'Recebedor/Fornecedor', 'Conta', 'Forma de Pagamento', 'Pago em', 'Observações'];
 
 const norm = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[()+\-/.]/g, ' ').replace(/\s+/g, ' ').trim();
 const isoOf = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -33,74 +29,30 @@ const GRUPO_ALIAS = {
 };
 function grupoId(nome) { const n = norm(nome); if (!n) return 'operacionais'; return GRUPO_ALIAS[n] || (GRUPOS.find(g => norm(g.titulo) === n || g.id === n)?.id) || 'operacionais'; }
 
-// ---- Modelo único para download ------------------------------------------
+// ---- Modelo para download -----------------------------------------------
+// O modelo é um arquivo .xlsx pronto no servidor (com dados de exemplo reais e as colunas
+// OBRIGATÓRIAS — Data e Valor — em negrito). Aqui só baixamos esse arquivo.
+const MODELO_URL = 'modelo-importacao-GPR.xlsx';
+const MODELO_NOME = 'P4 Gestão 2026.xlsx';   // vira o nome da empresa ao importar
 export function baixarModelo() {
-  if (!libOk()) { alert('Biblioteca de planilha não carregou (sem internet?).'); return; }
-  const wb = XLSX.utils.book_new();
-  const add = (nome, aoa) => XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), nome);
-
-  // Aba de AJUDA (não é importada). As 4 abas a preencher vêm depois.
-  add('Instruções', [
-    ['MODELO DE IMPORTAÇÃO — GPR (Gestão Para Resultado)'],
-    [''],
-    ['Preencha as 4 abas a seguir e suba o arquivo em Cadastro → Importar planilha.'],
-    ['Ao importar, é criada uma NOVA empresa com estes dados (não altera as existentes).'],
-    ['O NOME da empresa é o nome do arquivo que você subir (ex.: "Minha Loja.xlsx" → empresa "Minha Loja").'],
-    [''],
-    ['As 4 abas a preencher:'],
-    ['• Vendas — um lançamento de receita por linha.'],
-    ['• Despesas — um lançamento de despesa por linha.'],
-    ['• Orçamento de Despesa — quanto você planeja gastar por categoria em cada mês (por ano). Opcional.'],
-    ['• Canais e Metas — seus canais de venda e a meta de cada mês (por ano).'],
-    [''],
-    ['Como preencher:'],
-    ['• Datas no formato dd/mm/aaaa (ex.: 15/01/2026).'],
-    ['• Não renomeie as abas nem as colunas (cabeçalhos).'],
-    ['• As linhas de exemplo JÁ SÃO IMPORTADAS — edite-as/substitua pelos seus dados (e apague as que não usar).'],
-    ['• Criados automaticamente a partir dos lançamentos: Contas, Categorias, Clientes, Produtos/Pedidos e Recebedores.'],
-    ['  (Você ajusta saldos das contas e o grupo das categorias depois, em Cadastro.)'],
-    ['• Canal (em Vendas) e Categoria (em Despesas): se já existir no Cadastro, é reaproveitado; se não, é criado.'],
-    ['  Categoria nova entra no grupo "Operacionais" (você pode reclassificar no Cadastro).'],
-    [''],
-    ['Valores válidos:'],
-    ['• Formas de pagamento: ' + FORMAS_PAGAMENTO.join(', ')],
-    ['• Categorias de Receita: ' + DEFAULT_RECEITA_CATEGORIES.map(c => c.nome).join(', ')],
-    ['• Grupos do DRE (ao reclassificar categorias no Cadastro): ' + GRUPOS.map(g => g.id).join(', ')],
-  ]);
-
-  // 1) Vendas — linhas de exemplo (já importáveis); edite/substitua pelos seus dados.
-  add('Vendas', [COL_VENDAS,
-    ['15/01/2026', '1001', 'Loja Física', 'Receita Bruta (Faturamento)', 'Produto A', 'Cliente X', '', 1500, '15/01/2026', '15/01/2026', 'Nubank PJ', 'recebido à vista'],
-    ['20/02/2026', '1002', 'Online', 'Receita Bruta (Faturamento)', 'Produto B', 'Cliente Y', '', 2300, '20/03/2026', '', 'Nubank PJ', 'a receber'],
-    ['10/03/2026', '1003', 'Loja Física', 'Receita Bruta (Faturamento)', 'Produto C', 'Cliente Z', '1/3', 900, '10/03/2026', '10/03/2026', 'Caixa', 'parcela 1 de 3'],
-  ]);
-
-  // 2) Despesas
-  add('Despesas', [COL_DESP,
-    ['10/01/2026', 'jan/2026', 'Aluguel da loja', 'Aluguel', 800, 'Imobiliária Y', 'Nubank PJ', 'PIX', '10/01/2026', 'pago'],
-    ['05/02/2026', 'fev/2026', 'Folha de pagamento', 'Salários', 5000, 'Equipe', 'Nubank PJ', 'PIX', '05/02/2026', 'pago'],
-    ['15/03/2026', 'mar/2026', 'Impostos do mês', 'Impostos sobre vendas', 1200, 'Receita Federal', 'Nubank PJ', 'Boleto', '', 'em aberto'],
-  ]);
-
-  // 3) Orçamento de Despesa (opcional)
-  add('Orçamento de Despesa', [COL_ORC,
-    ['Aluguel', 2026, 800, 800, 800, 800, 800, 800, 800, 800, 800, 800, 800, 800],
-    ['Salários', 2026, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000],
-  ]);
-
-  // 4) Canais e Metas
-  add('Canais e Metas', [COL_CANAIS,
-    ['Loja Física', 2026, 20000, 20000, 22000, 22000, 25000, 25000, 25000, 25000, 28000, 30000, 35000, 40000],
-    ['Online', 2026, 10000, 10000, 12000, 12000, 15000, 15000, 15000, 15000, 18000, 20000, 22000, 25000],
-  ]);
-
-  XLSX.writeFile(wb, 'modelo-importacao-GPR.xlsx');
+  fetch(MODELO_URL, { cache: 'no-store' })
+    .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.blob(); })
+    .then(blob => {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = MODELO_NOME;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1500);
+    })
+    .catch(err => alert('Não foi possível baixar o modelo: ' + ((err && err.message) || err)));
 }
 
 // ---- Importação ----------------------------------------------------------
 const keymapDe = (row) => { const m = {}; Object.keys(row).forEach(k => m[norm(k)] = k); return m; };
 function vAl(row, km, ...names) { for (const n of names) { const k = km[norm(n)]; if (k !== undefined) return row[k]; } return ''; }
-const rowsDe = (wb, re, exclude) => { const nome = wb.SheetNames.find(n => re.test(norm(n)) && !(exclude && exclude.test(norm(n)))); return nome ? XLSX.utils.sheet_to_json(wb.Sheets[nome], { defval: '', raw: false }) : []; };
+// raw:true → números vêm como Number nativo (num() devolve direto) e datas como Date (parseData trata).
+// Com raw:false os valores viriam como texto "5208.8" e o num() (pt-BR) trataria o ponto como milhar.
+const rowsDe = (wb, re, exclude) => { const nome = wb.SheetNames.find(n => re.test(norm(n)) && !(exclude && exclude.test(norm(n)))); return nome ? XLSX.utils.sheet_to_json(wb.Sheets[nome], { defval: '', raw: true }) : []; };
 
 export function importarArquivo(file, cb) {
   if (!libOk()) { alert('Biblioteca de planilha não carregou (sem internet?).'); return; }
@@ -110,6 +62,7 @@ export function importarArquivo(file, cb) {
     try { wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array', cellDates: true }); }
     catch (err) { alert('Não foi possível ler o arquivo: ' + err.message); return; }
 
+    try {
     const rowsEmp = rowsDe(wb, /empresa/);
     const rowsCon = rowsDe(wb, /conta/);
     const rowsCan = rowsDe(wb, /cana/);
@@ -169,10 +122,12 @@ export function importarArquivo(file, cb) {
         if (!c) { s.categorias.push({ id: uid('cat'), grupo: gid, nome }); resumo.categorias++; } else c.grupo = gid;
       }
 
-      // Resolvedores p/ lançamentos (criam o que faltar)
-      const findCanal = (n) => { const c = upsertCanal(n); return c ? c.id : (s.canais[0]?.id || ''); };
-      const findConta = (n) => { const c = upsertConta(n); return c ? c.id : (s.contas[0]?.id || ''); };
-      const matchCat = (n) => { n = String(n || '').trim(); let c = s.categorias.find(x => norm(x.nome) === norm(n)); if (!c && n) { c = { id: uid('cat'), grupo: 'operacionais', nome: n }; s.categorias.push(c); resumo.categorias++; } return c ? c.id : (s.categorias[0]?.id || ''); };
+      // Resolvedores p/ lançamentos. SÓ Data + Valor são obrigatórios; o resto é opcional.
+      // Quando o campo vem VAZIO, fica em branco (NÃO cai no 1º canal/conta/categoria) — a pessoa
+      // preenche depois no app. Quando vem preenchido e não existe, é criado.
+      const findCanal = (n) => { const nm = String(n || '').trim(); if (!nm) return ''; const c = upsertCanal(nm); return c ? c.id : ''; };
+      const findConta = (n) => { const nm = String(n || '').trim(); if (!nm) return ''; const c = upsertConta(nm); return c ? c.id : ''; };
+      const matchCat = (n) => { n = String(n || '').trim(); if (!n) return ''; let c = s.categorias.find(x => norm(x.nome) === norm(n)); if (!c) { c = { id: uid('cat'), grupo: 'operacionais', nome: n }; s.categorias.push(c); resumo.categorias++; } return c.id; };
       const matchReceita = (n) => { const c = s.receitaCategorias.find(x => norm(x.nome) === norm(n)); return c ? c.id : 'rec_bruta'; };
       const matchForma = (n) => FORMAS_PAGAMENTO.find(f => norm(f) === norm(n)) || 'Outros';
       const ensureForn = (n) => { n = String(n || '').trim(); if (n && !s.fornecedores.find(f => norm(f.nome) === norm(n))) { s.fornecedores.push({ id: uid('forn'), nome: n }); resumo.fornecedores++; } return n; };
@@ -229,6 +184,7 @@ export function importarArquivo(file, cb) {
 
     resumo.anos = [...resumo.anos].sort();
     cb && cb(resumo);
+    } catch (err) { alert('Erro ao importar a planilha: ' + ((err && err.message) || err)); console.error('[import] falha ao processar:', err); }
   };
   reader.readAsArrayBuffer(file);
 }
