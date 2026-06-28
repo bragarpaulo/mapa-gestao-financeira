@@ -25,8 +25,9 @@ import * as orcamento from './views/orcamento.js';
 import * as planxreal from './views/planxreal.js';
 import * as metaxreal from './views/metaxreal.js';
 import * as metas from './views/metas.js';
+import * as conciliacao from './views/conciliacao.js';
 
-const VIEWS = { inicio, dashboard, cadastro, vendas, despesas, dre, dfc, fluxo, orcamento, planxreal, metaxreal, metas };
+const VIEWS = { inicio, dashboard, cadastro, vendas, despesas, dre, dfc, fluxo, conciliacao, orcamento, planxreal, metaxreal, metas };
 
 const navEl = document.getElementById('nav');
 const contentEl = document.getElementById('content');

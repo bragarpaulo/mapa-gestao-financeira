@@ -180,6 +180,7 @@ export { cloudEnabled };
 
 // ---- Empresas ------------------------------------------------------------
 export function getCompanies() { return root.companies.map(c => ({ id: c.id, nome: c.empresa.nome, cnpj: c.empresa.cnpj })); }
+export function getCompaniesFull() { return root.companies; }   // objetos completos (p/ Conciliação consolidar)
 export function getActiveId() { return root.activeId; }
 export function setActiveEmpresa(id) { if (root.companies.find(c => c.id === id)) { root.activeId = id; aplicarVigente(active()); save(); emit(); } }
 // Define a seleção do cabeçalho para o ANO e MÊS vigentes (chamado no boot e ao trocar de empresa).

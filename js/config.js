@@ -107,6 +107,7 @@ export const ICONES = {
   orcamento: ic('<rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1"/><path d="M8 10h8M8 14h5"/>'),
   planxreal: ic('<path d="M12 3v18"/><path d="M6 7h12"/><path d="M6 7l-3 6h6zM18 7l-3 6h6z"/>'),
   metaxreal: ic('<path d="M4 19a8 8 0 0 1 16 0"/><path d="M12 19l4.5-5.5"/><circle cx="12" cy="19" r="1.2"/>'),
+  conciliacao: ic('<path d="M12 2l9 5-9 5-9-5 9-5z"/><path d="M3 12l9 5 9-5"/><path d="M3 17l9 5 9-5"/>'),
 };
 
 // Abas do menu — ordem e nomes alinhados ao guia da planilha (+ Controle de Metas).
@@ -118,6 +119,7 @@ export const ABAS = [
   { id: 'dre',        nome: 'DRE (Anual)',              icone: ICONES.dre },
   { id: 'dfc',        nome: 'DFC (Anual)',              icone: ICONES.dfc },
   { id: 'fluxo',      nome: 'Fluxo de Caixa',           icone: ICONES.fluxo },
+  { id: 'conciliacao', nome: 'Conciliação',             icone: ICONES.conciliacao },
   { id: 'metas',      nome: 'Controle de Metas',        icone: ICONES.metas },
   { id: 'orcamento',  nome: 'Orçamento de Despesas',    icone: ICONES.orcamento },
   { id: 'planxreal',  nome: 'Orçado × Realizado',       icone: ICONES.planxreal },
