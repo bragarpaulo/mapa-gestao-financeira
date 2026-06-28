@@ -4,8 +4,9 @@ import {
   getCompanies, getActiveId, setActiveEmpresa, addEmpresa, removerEmpresa, setEmpresaCampo,
   getAnosDisponiveis, getAnosSel, toggleAno, setAnosSel, setPeriodoMeses,
   getTema, setTema,
-  initCloud,
+  initCloud, setUserScope,
 } from './store.js';
+import * as cloud from './cloud.js';
 import { ABAS, MESES } from './config.js';
 import { esc } from './util.js';
 import * as charts from './charts.js';
@@ -274,19 +275,105 @@ document.addEventListener('click', (e) => {
   const a = document.createElement('a'); a.href = tmp.toDataURL('image/png'); a.download = (b.dataset.dlname || 'grafico') + '.png'; a.click();
 });
 
+// ===== Autenticação: gate de login + termos (multi-inquilino) =====
+let _appReady = false, _bootedUid = null;
+function authGateEl() { let el = document.getElementById('auth-gate'); if (!el) { el = document.createElement('div'); el.id = 'auth-gate'; document.body.appendChild(el); } return el; }
+function hideAuthGate() { const el = document.getElementById('auth-gate'); if (el) el.remove(); }
+function traduzErroAuth(m) {
+  m = String(m || '');
+  if (/Invalid login/i.test(m)) return 'E-mail ou senha incorretos.';
+  if (/already (registered|exists)/i.test(m)) return 'Esse e-mail já tem conta — faça login.';
+  if (/Email not confirmed/i.test(m)) return 'Confirme seu e-mail antes de entrar.';
+  if (/at least/i.test(m)) return 'Senha muito curta (mínimo 6 caracteres).';
+  return m;
+}
+function renderLogin(modo = 'login', msg = '') {
+  _appReady = false;
+  const el = authGateEl();
+  const titulo = modo === 'signup' ? 'Criar conta' : (modo === 'reset' ? 'Recuperar senha' : 'Entrar');
+  el.innerHTML = `
+    <div class="auth-box">
+      <div class="auth-brand"><span class="auth-badge">📊</span><div><strong>GPR</strong><div class="auth-sub">Gestão Para Resultado</div></div></div>
+      <h2>${titulo}</h2>
+      ${msg ? `<div class="auth-msg ok">${esc(msg)}</div>` : ''}
+      <label>E-mail</label>
+      <input id="auth-email" type="email" autocomplete="email" placeholder="voce@empresa.com">
+      ${modo !== 'reset' ? `<label>Senha</label><input id="auth-pw" type="password" autocomplete="${modo === 'signup' ? 'new-password' : 'current-password'}" placeholder="••••••••">` : ''}
+      <button id="auth-go" class="btn btn-primary auth-go">${titulo}</button>
+      <div class="auth-links">${modo === 'login' ? `<a data-auth="signup">Criar conta</a> · <a data-auth="reset">Esqueci a senha</a>` : `<a data-auth="login">← Voltar ao login</a>`}</div>
+      <div id="auth-err" class="auth-err"></div>
+    </div>`;
+  const err = (m) => { el.querySelector('#auth-err').textContent = m || ''; };
+  el.querySelectorAll('[data-auth]').forEach(a => a.onclick = () => renderLogin(a.dataset.auth));
+  const go = el.querySelector('#auth-go');
+  go.onclick = async () => {
+    const email = (el.querySelector('#auth-email').value || '').trim();
+    const pw = (el.querySelector('#auth-pw') || {}).value || '';
+    if (!email) { err('Informe o e-mail.'); return; }
+    err(''); go.disabled = true; const lbl = go.textContent; go.textContent = 'Aguarde…';
+    try {
+      if (modo === 'reset') { const { error } = await cloud.resetPassword(email); renderLogin('login', error ? '' : 'Se o e-mail existir, enviamos um link de recuperação.'); if (error) err(error.message); return; }
+      const { data, error } = (modo === 'signup') ? await cloud.signUp(email, pw) : await cloud.signIn(email, pw);
+      if (error) { err(traduzErroAuth(error.message)); go.disabled = false; go.textContent = lbl; return; }
+      if (modo === 'signup' && data && data.user && !data.session) { renderLogin('login', 'Conta criada! Agora faça login.'); return; }
+      // sucesso → onAuthChange dispara bootApp()
+    } catch (e) { err(e.message); go.disabled = false; go.textContent = lbl; }
+  };
+  el.querySelectorAll('input').forEach(i => i.addEventListener('keydown', e => { if (e.key === 'Enter') go.click(); }));
+  setTimeout(() => { const f = el.querySelector('#auth-email'); if (f) f.focus(); }, 50);
+}
+function renderTermos(t) {
+  const el = authGateEl();
+  el.innerHTML = `
+    <div class="auth-box auth-wide">
+      <h2>Termos de Uso & Privacidade</h2>
+      <div class="auth-terms">${esc(t.body || '')}</div>
+      <label class="auth-check"><input type="checkbox" id="auth-acc"> Li e aceito os Termos de Uso e a Política de Privacidade.</label>
+      <button id="auth-aceitar" class="btn btn-primary auth-go" disabled>Aceitar e continuar</button>
+      <div class="auth-links"><a id="auth-sair">Sair</a></div>
+    </div>`;
+  const chk = el.querySelector('#auth-acc'), btn = el.querySelector('#auth-aceitar');
+  chk.onchange = () => { btn.disabled = !chk.checked; };
+  el.querySelector('#auth-sair').onclick = async () => { await cloud.signOut(); };
+  btn.onclick = async () => { btn.disabled = true; const ok = await cloud.acceptTerms(t.version); if (ok) { _bootedUid = null; bootApp(); } else { btn.disabled = false; } };
+}
+async function bootApp() {
+  const u = await cloud.currentUser();
+  if (!u) { renderLogin(); return; }
+  if (_appReady && _bootedUid === u.id) return;
+  setUserScope(u.id);
+  const t = await cloud.termsStatus();
+  if (t.version && !t.accepted) { renderTermos(t); return; }
+  _bootedUid = u.id; _appReady = true;
+  hideAuthGate();
+  if (!location.hash) location.hash = '#inicio';
+  buildNav();
+  await initCloud();                      // carrega os dados DO usuário (user_data)
+  // Migração 1x: conta vazia + dados antigos NESTE navegador → oferece importar para a conta
+  if (store.contaVazia() && store.temDadosLegados()) {
+    if (confirm('Encontramos dados financeiros guardados neste navegador (de antes do login). Deseja importá-los para a sua conta?')) store.importarLegado();
+  }
+  store.aplicarPeriodoVigente();
+  renderView();
+}
+async function startAuthBoot() {
+  if (!cloud.cloudEnabled()) {            // sem Supabase → modo local (sem login)
+    _appReady = true; store.aplicarPeriodoVigente(); if (!location.hash) location.hash = '#inicio'; buildNav(); renderView(); return;
+  }
+  cloud.onAuthChange((event, session) => { if (session) bootApp(); else { _appReady = false; _bootedUid = null; renderLogin(); } });
+}
+
 applyTema();
-store.aplicarPeriodoVigente();   // sempre inicia no ano + mês vigentes
-if (!location.hash) location.hash = '#inicio';
-buildNav();
-renderView();
-window.addEventListener('hashchange', renderView);
-subscribe(() => { applyTema(); renderView(); });
-initCloud().then(() => { store.aplicarPeriodoVigente(); renderView(); });   // após carregar a nuvem, volta ao mês/ano vigentes
+window.addEventListener('hashchange', () => { if (_appReady) renderView(); });
+subscribe(() => { applyTema(); if (_appReady) renderView(); });
+startAuthBoot();
 
 window.__MGF = { renderView, getState };
 window.__store = store;
 window.__import = importmod;
+window.__cloud = cloud;
 
 document.getElementById('btn-tema').addEventListener('click', toggleTema);
 document.getElementById('btn-restaurar').addEventListener('click', () => { if (confirm('Restaurar a demonstração? Isso substitui TUDO pela "Empresa Demonstrativa" (2025 + 2026).')) resetDemo(); });
 document.getElementById('btn-limpar').addEventListener('click', () => { if (confirm('Apagar TODAS as empresas e dados e começar do zero?')) clearAll(); });
+document.getElementById('btn-sair').addEventListener('click', async () => { if (confirm('Sair da conta?')) { await cloud.signOut(); } });

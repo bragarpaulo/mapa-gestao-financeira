@@ -6,6 +6,8 @@ import { uid, anosDisponiveis as anosDisponiveisUtil, addMeses, parseISO, mesAno
 import { cloudEnabled, cloudLoad, cloudSave, cloudSubscribe } from './cloud.js';
 
 const LS_KEY = 'mapa_financeiro_mvp_v2';
+let _scope = '';                                  // sufixo por usuário (isola o cache local)
+function lsKey() { return _scope ? (LS_KEY + '_' + _scope) : LS_KEY; }
 
 function freshCategorias() { return DEFAULT_CATEGORIES.map(c => ({ ...c })); }
 function freshReceitaCats() { return DEFAULT_RECEITA_CATEGORIES.map(c => ({ ...c })); }
@@ -119,7 +121,7 @@ const listeners = new Set();
 
 function load() {
   try {
-    const raw = localStorage.getItem(LS_KEY);
+    const raw = localStorage.getItem(lsKey());
     if (!raw) return null;
     const r = JSON.parse(raw);
     if (!r.companies || !r.companies.length) return null;
@@ -134,7 +136,7 @@ let _localTimer = null;
 function scheduleLocal() { clearTimeout(_localTimer); _localTimer = setTimeout(flushLocal, 250); }
 export function flushLocal() {
   clearTimeout(_localTimer); _localTimer = null;
-  try { localStorage.setItem(LS_KEY, JSON.stringify(root)); } catch (e) {}
+  try { localStorage.setItem(lsKey(), JSON.stringify(root)); } catch (e) {}
 }
 export function save() { _lastLocalSave = Date.now(); scheduleLocal(); scheduleCloud(); }
 if (typeof window !== 'undefined') window.addEventListener('beforeunload', flushLocal);
@@ -161,7 +163,7 @@ function aplicarRemoto(remote) {
   remote.companies.forEach(migrarCompany);
   if (!remote.companies.find(c => c.id === remote.activeId)) remote.activeId = remote.companies[0].id;
   root = remote;
-  try { localStorage.setItem(LS_KEY, JSON.stringify(root)); } catch (e) {}
+  try { localStorage.setItem(lsKey(), JSON.stringify(root)); } catch (e) {}
   emit();
 }
 export async function initCloud() {
@@ -200,6 +202,40 @@ export function clearAll() {
   root = { companies: [c], activeId: c.id };
   aplicarVigente(active());
   save(); flushCloud(); emit();
+}
+
+// ---- Sessão do usuário (multi-inquilino) --------------------------------
+// Define o usuário logado: isola o cache local por usuário e recarrega o root DELE
+// (cache local do usuário ou, se vazio, UMA empresa em branco — não o demo).
+export function setUserScope(uid) {
+  _scope = uid || '';
+  const r = load();
+  root = r || { companies: [emptyCompany(anoCorrente(), 'Minha Empresa')], activeId: null };
+  if (!root.activeId) root.activeId = root.companies[0].id;
+  aplicarVigente(active());
+  emit();
+}
+
+// Dados "legados": cache do app de ANTES do login (chave sem escopo de usuário).
+// Usado p/ migrar, no 1º login, os dados que já estavam neste navegador para a conta do usuário.
+export function temDadosLegados() {
+  try { const raw = localStorage.getItem(LS_KEY); if (!raw) return false; const r = JSON.parse(raw); return !!(r && r.companies && r.companies.length); } catch (e) { return false; }
+}
+export function contaVazia() {
+  const cs = root.companies || [];
+  return cs.length <= 1 && cs.every(c => !(c.vendas && c.vendas.length) && !(c.despesas && c.despesas.length));
+}
+export function importarLegado() {
+  try {
+    const raw = localStorage.getItem(LS_KEY); if (!raw) return false;
+    const r = JSON.parse(raw); if (!r || !r.companies || !r.companies.length) return false;
+    r.companies.forEach(migrarCompany);
+    if (!r.companies.find(c => c.id === r.activeId)) r.activeId = r.companies[0].id;
+    root = r;                       // adota os dados deste navegador no escopo do usuário logado
+    aplicarVigente(active());
+    flushLocal(); flushCloud(); emit();
+    return true;
+  } catch (e) { return false; }
 }
 
 // ---- Backup do usuário (exportar/restaurar TODOS os dados) ---------------
