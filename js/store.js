@@ -202,6 +202,22 @@ export function clearAll() {
   save(); flushCloud(); emit();
 }
 
+// ---- Backup do usuário (exportar/restaurar TODOS os dados) ---------------
+// Exporta o estado completo (todas as empresas) p/ um objeto JSON com metadados.
+export function exportarBackup() {
+  return { _gpr_backup: 2, exportadoEm: new Date().toISOString(), empresas: root.companies.length, root: JSON.parse(JSON.stringify(root)) };
+}
+// Restaura um backup (aceita { root: {...} } ou o root cru). SUBSTITUI tudo. Grava na hora (local + nuvem).
+export function restaurarBackup(obj) {
+  const r = obj && obj.root ? obj.root : obj;
+  if (!r || !Array.isArray(r.companies) || !r.companies.length) throw new Error('Backup inválido (sem empresas).');
+  r.companies.forEach(migrarCompany);
+  if (!r.companies.find(c => c.id === r.activeId)) r.activeId = r.companies[0].id;
+  root = r;
+  aplicarVigente(active());
+  flushLocal(); flushCloud(); emit();
+}
+
 // ---- Anos (multi-ano) ----------------------------------------------------
 export function getAnos() { return [...active().empresa.anos].sort((a, b) => a - b); }
 // Anos disponíveis = cadastrados ∪ com dados ∪ ano corrente (gerados automaticamente).

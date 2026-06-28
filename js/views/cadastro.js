@@ -10,6 +10,7 @@ import {
   addCliente, renomearCliente, removerCliente, removerClientes,
   addProduto, renomearProduto, removerProduto, removerProdutos,
   addAno, removerAno, setAnoAtivo, GRUPOS,
+  exportarBackup, restaurarBackup,
 } from '../store.js';
 import { TIPOS_CONTA, MESES } from '../config.js';
 import { pageHead, options, moneyInput } from '../ui.js';
@@ -147,6 +148,16 @@ export function render(container) {
         <button class="btn btn-primary btn-sm" data-action="importar">📥 Importar planilha preenchida</button>
         <input type="file" id="import-file" accept=".xlsx,.xls" style="display:none">
       </div>
+    </details>
+
+    <details class="card card-pad cad-section">
+      <summary>💾 Backup dos seus dados</summary>
+      <div class="hint" style="margin:6px 0 10px">Exporte um arquivo com <strong>todos os seus dados</strong> (todas as empresas) para guardar como segurança. Dá para restaurar a qualquer momento. Guarde o arquivo em local seguro — ele contém seus dados financeiros.</div>
+      <div class="card-head-actions">
+        <button class="btn btn-sm" data-action="exportar-backup">⬇ Exportar backup</button>
+        <button class="btn btn-sm" data-action="restaurar-backup">⬆ Restaurar backup</button>
+        <input type="file" id="backup-file" accept=".json,application/json" style="display:none">
+      </div>
     </details>`;
 
   wire(container, ano);
@@ -193,6 +204,19 @@ function wire(container, ano) {
       t.value = '';
       return;
     }
+    if (t.id === 'backup-file') {
+      const f = t.files && t.files[0]; t.value = '';
+      if (!f) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        let obj; try { obj = JSON.parse(reader.result); } catch (e) { alert('Arquivo de backup inválido (não é um JSON válido).'); return; }
+        if (!confirm('Restaurar este backup vai SUBSTITUIR todos os dados atuais (todas as empresas) pelos do arquivo. Continuar?')) return;
+        try { restaurarBackup(obj); alert('Backup restaurado com sucesso.'); location.hash = '#dashboard'; }
+        catch (e) { alert('Não foi possível restaurar: ' + e.message); }
+      };
+      reader.readAsText(f);
+      return;
+    }
     // Edições NÃO re-renderizam (silent): a tabela larga de metas não volta ao início e o foco/Tab seguem
     // na mesma linha. Os totais derivados (canal e contas) são atualizados na própria célula, sem re-render.
     // (Empresa fica NÃO-silent para o nome refletir no topo na hora.)
@@ -226,6 +250,20 @@ function wire(container, ano) {
     else if (action === 'rm-prod') removerProduto(id);
     else if (action === 'baixar-modelo') baixarModelo();
     else if (action === 'importar') container.querySelector('#import-file').click();
+    else if (action === 'restaurar-backup') container.querySelector('#backup-file').click();
+    else if (action === 'exportar-backup') {
+      try {
+        const data = exportarBackup();
+        const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const d = new Date();
+        const ymd = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        const a = document.createElement('a');
+        a.href = url; a.download = `gpr-backup-${ymd}.json`;
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1500);
+      } catch (e) { alert('Não foi possível exportar o backup: ' + e.message); }
+    }
     else if (action === 'add-ano') {
       const a = prompt('Adicionar qual ano?', String(ano + 1)); if (!a) return;
       const y = Number(a); if (!y || y < 1900 || y > 3000) { alert('Ano inválido.'); return; }

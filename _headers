@@ -1,0 +1,8 @@
+# Cloudflare Pages — controle de cache.
+# O app não usa hash de versão nos arquivos, então pedimos REVALIDAÇÃO sempre:
+# o navegador guarda em cache mas confirma com o servidor antes de usar (304 = rápido se
+# nada mudou; 200 = pega a versão nova após cada deploy). Acaba com "versão velha presa".
+/*
+  Cache-Control: no-cache
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
