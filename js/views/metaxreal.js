@@ -19,6 +19,9 @@ export function render(container) {
   const metaMes = Array.from({ length: 12 }, (_, i) => d.canais.reduce((a, c) => a + (c.meta[i] || 0), 0));
   const realMes = Array.from({ length: 12 }, (_, i) => d.canais.reduce((a, c) => a + (c.real[i] || 0), 0));
   const tot = (arr) => arr.reduce((a, b) => a + b, 0);
+  // Linha de atingimento: % acumulado (realizado ÷ meta) mês a mês.
+  let cumMeta = 0, cumReal = 0;
+  const atingAcum = metaMes.map((mv, i) => { cumMeta += mv; cumReal += realMes[i]; return cumMeta > 0 ? cumReal / cumMeta : null; });
 
   const resumo = d.canais.map(c => {
     const dif = c.realYTD - c.metaYTD;
@@ -43,16 +46,16 @@ export function render(container) {
   detalhe += `<tr class="row-total row-resultado"><td>TOTAL — Realizado</td>${realMes.map(v => `<td class="num">${fmtBRL0(v)}</td>`).join('')}<td class="num"><strong>${fmtBRL0(tot(realMes))}</strong></td></tr>`;
 
   container.innerHTML = `
-    ${pageHead('Meta de Receita × Realizado', `Atingimento acumulado até ${d.mesLabel} · ${ano}`)}
+    ${pageHead('Meta de Receita × Realizado', `Meta × realizado · ${d.mesLabel}`)}
     ${exportToolbar()}
-    <div class="callout">O <strong>% atingido</strong> compara o realizado com a meta do início do ano até ${esc(d.mesLabel)}.</div>
+    <div class="callout">O <strong>% atingido</strong> compara realizado × meta no período (<strong>${esc(d.mesLabel)}</strong>). A <strong>linha verde</strong> mostra o atingimento acumulado mês a mês.</div>
 
     <div class="card chart-box" style="margin-top:14px">
       <h3>Meta × Realizado (mês a mês) ${eyeToggle('ch-mxr', chartLabelOn('ch-mxr'))}</h3>
       <div class="chart-canvas-wrap"><canvas id="ch-mxr"></canvas></div>
     </div>
 
-    <div class="section-title">Resumo por canal (até ${esc(d.mesLabel)})</div>
+    <div class="section-title">Resumo por canal · ${esc(d.mesLabel)}</div>
     <div class="table-wrap">
       <table>
         <thead><tr><th style="min-width:180px">Canal</th><th class="num">Meta</th><th class="num">Realizado</th><th class="num">Diferença</th><th class="num">% Atingido</th></tr></thead>
@@ -74,7 +77,7 @@ export function render(container) {
       ${chartWidget({ titulo: '👥 Vendas por Cliente', segName: 'mxrCli', view: cliView, data: cliData, canvasId: 'ch-mxr-cli', dlName: 'Vendas-por-cliente', labelOn: chartLabelOn('ch-mxr-cli') })}
     </div>`;
 
-  charts.metaRealChart('ch-mxr', MESES, metaMes, realMes, chartLabelOn('ch-mxr'));
+  charts.metaRealChart('ch-mxr', MESES, metaMes, realMes, chartLabelOn('ch-mxr'), atingAcum);
   const montarBreak = (view, canvasId, data) => {
     if (view === 'tabela') return;
     const labels = data.map(x => x.label), vals = data.map(x => x.valor);

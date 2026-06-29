@@ -203,15 +203,24 @@ export function pizza(id, labels, valores, onClick, mostrar = true) {
   }, onClick);
 }
 
-// Meta × Realizado (2 séries de barras).
-export function metaRealChart(id, labels, meta, real, mostrar = true) {
-  return make(id, {
-    type: 'bar',
-    data: { labels, datasets: [
-      { label: 'Meta', data: meta, backgroundColor: '#94A3B8', borderRadius: 4 },
-      { label: 'Realizado', data: real, backgroundColor: '#1D4ED8', borderRadius: 4 },
-    ] }, options: gridOpts('y'), plugins: mostrar ? [barValueLabels] : [],
-  });
+// Meta × Realizado (2 séries de barras) + linha opcional de % atingido acumulado.
+export function metaRealChart(id, labels, meta, real, mostrar = true, atingAcum = null) {
+  const datasets = [
+    { label: 'Meta', data: meta, backgroundColor: '#94A3B8', borderRadius: 4 },
+    { label: 'Realizado', data: real, backgroundColor: '#1D4ED8', borderRadius: 4 },
+  ];
+  const options = gridOpts('y');
+  if (atingAcum) {
+    // Linha de atingimento: % acumulado (realizado ÷ meta) no eixo direito.
+    datasets.push({
+      type: 'line', label: '% Atingido (acum.)',
+      data: atingAcum.map(v => (v == null ? null : Math.round(v * 1000) / 10)),
+      borderColor: '#16A34A', backgroundColor: '#16A34A', borderWidth: 2, tension: .3,
+      pointRadius: 3, pointHoverRadius: 4, yAxisID: 'y1', order: 0, spanGaps: true,
+    });
+    options.scales.y1 = { position: 'right', beginAtZero: true, grid: { drawOnChartArea: false }, ticks: { font: { size: 10 }, callback: (v) => v + '%' } };
+  }
+  return make(id, { type: 'bar', data: { labels, datasets }, options, plugins: mostrar ? [barValueLabels] : [] });
 }
 
 // Linha de projeção (saldo no tempo).

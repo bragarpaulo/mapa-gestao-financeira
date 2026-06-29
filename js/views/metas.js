@@ -52,8 +52,8 @@ export function render(container) {
   }).join('') || `<tr><td colspan="7" class="empty">Cadastre canais e metas no Cadastro.</td></tr>`;
 
   container.innerHTML = `
-    ${pageHead('Controle de Metas', `Acompanhamento acumulado até ${m.mesLabel} · ${m.ano}`)}
-    <div class="callout">Indicadores <strong>YTD</strong> (do início do ano até hoje). A <strong>projeção</strong> estima o total do ano mantendo o ritmo atual.</div>
+    ${pageHead('Controle de Metas', `Acompanhamento · ${m.mesLabel}`)}
+    <div class="callout">Os valores seguem o <strong>filtro de meses</strong> do topo (mês selecionado ou ano inteiro). A <strong>projeção</strong> estima o total do ano no ritmo atual (YTD).</div>
     <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(240px,1fr));margin-top:14px">
       ${cardGauge(m.receita, 'var(--green)', 'Meta de Receita', m.receita.real, m.receita.meta)}
       ${cardGauge(m.lucro, 'var(--primary)', 'Meta de Lucro Líquido', m.lucro.real, m.lucro.meta)}
@@ -62,10 +62,10 @@ export function render(container) {
 
     ${alertasHtml}
 
-    <div class="section-title">Metas de receita por canal (até ${esc(m.mesLabel)})</div>
+    <div class="section-title">Metas de receita por canal · ${esc(m.mesLabel)}</div>
     <div class="table-wrap">
       <table>
-        <thead><tr><th style="min-width:150px">Canal</th><th>Status</th><th class="num">Meta YTD</th><th class="num">Realizado YTD</th><th class="num">% Atingido</th><th class="num">Projeção ano</th><th>Progresso</th></tr></thead>
+        <thead><tr><th style="min-width:150px">Canal</th><th>Status</th><th class="num">Meta</th><th class="num">Realizado</th><th class="num">% Atingido</th><th class="num">Projeção ano</th><th>Progresso</th></tr></thead>
         <tbody>${canalRows}</tbody>
       </table>
     </div>`;

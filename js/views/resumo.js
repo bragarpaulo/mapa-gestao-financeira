@@ -2,8 +2,8 @@
 import { kpi, kpi2, fmtBRL0, fmtPct, eyeToggle, chartDlBtn } from '../ui.js';
 import { esc, anosSelecionados } from '../util.js';
 import { MESES } from '../config.js';
-import { chartLabelOn, getState, isAggregated, getSelectedIds, getCompaniesFull, empresaCor } from '../store.js';
-import { calcSeriesMultiAno, calcSeriesPorEmpresa } from '../calc.js';
+import { chartLabelOn, getState } from '../store.js';
+import { calcSeriesMultiAno } from '../calc.js';
 import * as charts from '../charts.js';
 
 function resumoLinha(pairs) {
@@ -68,7 +68,7 @@ export function cardReceitaDespesa(d) {
   const margemAnual = d.totalAnualReceita ? d.totalAnualLucro / d.totalAnualReceita : '';
   return `
     <div class="card chart-box" style="margin-top:14px">
-      ${chartHead(isAggregated() ? 'Receita por empresa (mês a mês)' : 'Receita × Despesa × Lucro (ano)', 'ch-recdesp', 'Receita-Despesa-Lucro')}
+      ${chartHead('Receita × Despesa × Lucro (ano)', 'ch-recdesp', 'Receita-Despesa-Lucro')}
       <div class="chart-canvas-wrap"><canvas id="ch-recdesp"></canvas></div>
       ${resumoLinha([[' Receita', fmtBRL0(d.receita), 'pos'], [' Despesa', fmtBRL0(d.despesaTotal), 'neg'], [' Lucro', fmtBRL0(d.lucro), d.lucro >= 0 ? 'pos' : 'neg'], [' Margem', margem === '' ? '—' : fmtPct(margem)]])}
       ${totalAnualLinha([[' Receita (ano)', fmtBRL0(d.totalAnualReceita), 'pos'], [' Despesa (ano)', fmtBRL0(d.totalAnualDespesa), 'neg'], [' Lucro (ano)', fmtBRL0(d.totalAnualLucro), d.totalAnualLucro >= 0 ? 'pos' : 'neg'], [' Margem (ano)', margemAnual === '' ? '—' : fmtPct(margemAnual)]])}
@@ -78,7 +78,7 @@ export function cardLucro(d) {
   const margemAnual = d.totalAnualReceita ? d.totalAnualLucro / d.totalAnualReceita : '';
   return `
     <div class="card chart-box" style="margin-top:14px">
-      ${chartHead(isAggregated() ? 'Lucro por empresa (mês a mês)' : 'Lucro mês a mês', 'ch-lucro', 'Lucro-mes-a-mes')}
+      ${chartHead('Lucro mês a mês', 'ch-lucro', 'Lucro-mes-a-mes')}
       <div class="chart-canvas-wrap"><canvas id="ch-lucro"></canvas></div>
       ${lucroStatsLinha(d.serieLucro)}
       ${totalAnualLinha([[' Lucro (ano)', fmtBRL0(d.totalAnualLucro), d.totalAnualLucro >= 0 ? 'pos' : 'neg'], [' Margem (ano)', margemAnual === '' ? '—' : fmtPct(margemAnual)]])}
@@ -87,7 +87,7 @@ export function cardLucro(d) {
 export function cardRecebPag(d) {
   return `
     <div class="card chart-box" style="margin-top:14px">
-      ${chartHead(isAggregated() ? 'Despesa por empresa (mês a mês)' : 'Recebimentos × Pagamentos × Geração de Caixa (ano)', 'ch-recpag', 'Recebimentos-Pagamentos')}
+      ${chartHead('Recebimentos × Pagamentos × Geração de Caixa (ano)', 'ch-recpag', 'Recebimentos-Pagamentos')}
       <div class="chart-canvas-wrap"><canvas id="ch-recpag"></canvas></div>
       ${resumoLinha([[' Recebimentos', fmtBRL0(d.recebimentos), 'pos'], [' Pagamentos', fmtBRL0(d.pagamentos), 'neg'], [' Geração', fmtBRL0(d.geracaoCaixa), d.geracaoCaixa >= 0 ? 'pos' : 'neg']])}
       ${totalAnualLinha([[' Recebimentos (ano)', fmtBRL0(d.totalAnualReceita), 'pos'], [' Pagamentos (ano)', fmtBRL0(d.totalAnualDespesa), 'neg'], [' Geração (ano)', fmtBRL0(d.totalAnualGeracao), d.totalAnualGeracao >= 0 ? 'pos' : 'neg']])}
@@ -99,18 +99,7 @@ export function chartsResumoHtml(d) {
 }
 
 export function montarChartsResumo(d, onClickMes) {
-  if (isAggregated()) {
-    // Consolidado: uma série COLORIDA por empresa em cada gráfico (Receita / Despesa / Lucro por mês).
-    const sel = getSelectedIds();
-    const comps = getCompaniesFull().filter(c => sel.includes(c.id));
-    const ano = Math.max(...anosSelecionados(getState()));
-    const series = calcSeriesPorEmpresa(comps, ano);
-    const ser = (k) => series.map(s => ({ label: s.nome, data: s[k], cor: empresaCor(s.empId) }));
-    charts.barrasMulti('ch-recdesp', MESES, ser('receita'));
-    charts.barrasMulti('ch-recpag', MESES, ser('despesa'));
-    charts.linhasMulti('ch-lucro', MESES, ser('lucro'));
-    return;
-  }
+  // No consolidado, getState() é a empresa virtual SOMADA → os gráficos mostram a somatória (totais).
   const anos = anosSelecionados(getState());
   if (anos.length > 1) {
     // Multi-ano: jan/25…dez/25, jan/26… (sem clique de mês, pois o eixo é combinado).

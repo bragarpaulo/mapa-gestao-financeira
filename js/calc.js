@@ -161,42 +161,50 @@ export function calcPlanxReal(s) {
   });
 }
 
-// ===== Meta x Real (com YTD) ==============================================
+// ===== Meta x Real ========================================================
+// Os campos metaYTD/realYTD/pctYTD seguem o FILTRO de meses do cabeçalho (mês selecionado ou,
+// se nada marcado, o ano inteiro). A projeção do ano continua baseada no ritmo YTD (até hoje).
 export function calcMetaxReal(s) {
   const ano = anoAtivo(s);
   const cols = chavesAno(ano);
   const elapsed = mesesDecorridos(ano);
+  const sel = (s.ui.periodoMeses && s.ui.periodoMeses.length) ? [...s.ui.periodoMeses].sort((a, b) => a - b) : [...Array(12).keys()];
   const vd = vendasDerivadas(s);
   const sumYTD = (arr) => arr.slice(0, elapsed).reduce((a, b) => a + (+b || 0), 0);
+  const sumSel = (arr) => sel.reduce((a, i) => a + (+arr[i] || 0), 0);
   const canais = s.canais.map(ch => {
     const meta = metaArr(ch, ano);
     const real = cols.map(k => vd.reduce((a, v) => a + (v.canalId === ch.id && v.mesVenda === k ? num(v.valor) : 0), 0));
-    const metaYTD = sumYTD(meta), realYTD = sumYTD(real);
-    const pctYTD = metaYTD ? realYTD / metaYTD : '';
+    const metaSel = sumSel(meta), realSel = sumSel(real);
+    const pctSel = metaSel ? realSel / metaSel : '';
     const metaTotal = meta.reduce((a, b) => a + b, 0);
-    const projecaoAno = elapsed ? realYTD / elapsed * 12 : 0;       // ritmo atual projetado p/ o ano
-    const statusMeta = pctYTD === '' ? 'sem' : pctYTD >= 1 ? 'acima' : pctYTD >= 0.8 ? 'atencao' : 'abaixo';
-    return { canal: ch.nome, meta, real, metaTotal, realTotal: real.reduce((a, b) => a + b, 0), metaYTD, realYTD, pctYTD, projecaoAno, projecaoPct: metaTotal ? projecaoAno / metaTotal : '', statusMeta };
+    const projecaoAno = elapsed ? sumYTD(real) / elapsed * 12 : 0;   // ritmo YTD projetado p/ o ano
+    const statusMeta = pctSel === '' ? 'sem' : pctSel >= 1 ? 'acima' : pctSel >= 0.8 ? 'atencao' : 'abaixo';
+    return { canal: ch.nome, meta, real, metaTotal, realTotal: real.reduce((a, b) => a + b, 0), metaYTD: metaSel, realYTD: realSel, pctYTD: pctSel, projecaoAno, projecaoPct: metaTotal ? projecaoAno / metaTotal : '', statusMeta };
   });
   const totalMetaYTD = canais.reduce((a, c) => a + c.metaYTD, 0);
   const totalRealYTD = canais.reduce((a, c) => a + c.realYTD, 0);
-  return { canais, elapsed, mesLabel: elapsed ? `${MESES[elapsed - 1]}/${ano}` : `${ano}`, totalMetaYTD, totalRealYTD, pctYTD: totalMetaYTD ? totalRealYTD / totalMetaYTD : '' };
+  const todoAno = sel.length === 12;
+  const mesLabel = todoAno ? `ano ${ano}` : sel.length === 1 ? `${MESES[sel[0]]}/${ano}` : `${MESES[sel[0]]}–${MESES[sel[sel.length - 1]]}/${ano}`;
+  return { canais, elapsed, sel, mesLabel, periodoTodoAno: todoAno, totalMetaYTD, totalRealYTD, pctYTD: totalMetaYTD ? totalRealYTD / totalMetaYTD : '' };
 }
 
 // ===== Controle de Metas (painel) =========================================
 export function calcControleMetas(s) {
   const ano = anoAtivo(s);
   const elapsed = mesesDecorridos(ano);
-  const sumYTD = (arr) => arr.slice(0, elapsed).reduce((a, b) => a + (+b || 0), 0);
+  // Mesmo filtro de meses do cabeçalho (mês selecionado ou ano inteiro).
+  const sel = (s.ui.periodoMeses && s.ui.periodoMeses.length) ? [...s.ui.periodoMeses].sort((a, b) => a - b) : [...Array(12).keys()];
+  const sumSel = (arr) => sel.reduce((a, i) => a + (+arr[i] || 0), 0);
   const mx = calcMetaxReal(s);
   const orc = calcOrcamento(s);
   const dre = calcDRE(s);
   const receita = { meta: mx.totalMetaYTD, real: mx.totalRealYTD, pct: mx.totalMetaYTD ? mx.totalRealYTD / mx.totalMetaYTD : '' };
-  const metaLucro = sumYTD(orc.lucroLiquido), realLucro = sumYTD(dre.lucroLiquido);
+  const metaLucro = sumSel(orc.lucroLiquido), realLucro = sumSel(dre.lucroLiquido);
   const lucro = { meta: metaLucro, real: realLucro, pct: metaLucro ? realLucro / metaLucro : '' };
-  const metaDesp = sumYTD(orc.totalDespesas), realDesp = sumYTD(dre.totalDespesas.map(v => Math.abs(v)));
+  const metaDesp = sumSel(orc.totalDespesas), realDesp = sumSel(dre.totalDespesas.map(v => Math.abs(v)));
   const despesas = { meta: metaDesp, real: realDesp, pct: metaDesp ? realDesp / metaDesp : '' };
-  return { ano, elapsed, mesLabel: mx.mesLabel, receita, lucro, despesas, canais: mx.canais };
+  return { ano, elapsed, mesLabel: mx.mesLabel, periodoTodoAno: mx.periodoTodoAno, receita, lucro, despesas, canais: mx.canais };
 }
 
 // ===== Aging (entradas/saídas por prazo D+) ===============================
