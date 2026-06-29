@@ -3,7 +3,7 @@
 import { getState, addDespesa, duplicarDespesa, removerDespesa, removerDespesas, removerDespesaAFrente, setDespesaCampo, setDespesasFiltro, setDespesasSort, ensureFornecedor, aplicarRecorrenciaDespesa, nomeCategoria, nomeConta, isAggregated } from '../store.js';
 import { despesaDerivada } from '../calc.js';
 import { STATUS_DESPESA, FORMAS_PAGAMENTO, MESES } from '../config.js';
-import { pageHead, options, badgeDespesa, moneyInput, fmtMoneyInput, statusFilterChips, attachAutocomplete, openRecPopover, openChoicePopover } from '../ui.js';
+import { pageHead, options, badgeDespesa, moneyInput, fmtMoneyInput, statusFilterChips, attachAutocomplete, openRecPopover, openChoicePopover, wireBusca } from '../ui.js';
 import { esc, num, fmtBRL0, fmtBRL, fmtData, norm, anosSelecionados, chavesAno, anoAtivo } from '../util.js';
 import { nomeRecorrencia } from '../recurrence.js';
 
@@ -108,8 +108,7 @@ function renderConsolidado(container, s) {
       <thead><tr><th>Empresa</th><th>Vencimento</th><th>Descrição</th><th>Categoria</th><th class="num">Valor</th><th>Recebedor</th><th>Pago em</th><th>Status</th></tr></thead>
       <tbody>${rows}</tbody>
     </table></div>`;
-  const busca = container.querySelector('#f-busca');
-  if (busca) busca.addEventListener('input', () => setDespesasFiltro({ busca: busca.value }));
+  wireBusca(container, 'f-busca', (val) => setDespesasFiltro({ busca: val }));
   container.querySelectorAll('[data-statusfilter]').forEach(ch => ch.addEventListener('click', () => {
     const st = ch.dataset.statusfilter, cur = (getState().ui.despesasFiltro?.status) || [];
     setDespesasFiltro({ status: cur.includes(st) ? cur.filter(x => x !== st) : [...cur, st] });
@@ -195,14 +194,8 @@ function wire(container, compOpts) {
     setDespesaCampo(id, campo, t.value, { silent: true });   // selects silenciosos → não reordena
     atualizarDerivada(container, id);
   });
-  // Busca AO VIVO: filtra conforme digita/apaga, sem precisar de Enter (restaura foco/cursor após o re-render).
-  container.addEventListener('input', (ev) => {
-    const t = ev.target; if (t.id !== 'f-busca') return;
-    const pos = t.selectionStart;
-    setDespesasFiltro({ busca: t.value });
-    const novo = document.getElementById('f-busca');
-    if (novo) { novo.focus(); try { novo.setSelectionRange(pos, pos); } catch (_) {} }
-  });
+  // Busca AO VIVO (debounce + restaura foco): filtra conforme digita, sem lag nem perder o cursor.
+  wireBusca(container, 'f-busca', (val) => setDespesasFiltro({ busca: val }));
   container.addEventListener('blur', (ev) => {
     const t = ev.target; if (!(t instanceof HTMLInputElement) || !t.classList.contains('money')) return;
     if (t.dataset.id && t.dataset.campo) { setDespesaCampo(t.dataset.id, t.dataset.campo, num(t.value), { silent: true }); t.value = fmtMoneyInput(num(t.value)); atualizarDerivada(container, t.dataset.id); }

@@ -1,5 +1,5 @@
 // views/fluxo.js — Fluxo de Caixa: resumo, projeção, aging, tabela mensal e anexos.
-import { getState, addPlataforma, setPlataformaCampo, removerPlataforma, setFluxoMesReceber } from '../store.js';
+import { getState, addPlataforma, setPlataformaCampo, removerPlataforma, setFluxoMesReceber, isAggregated } from '../store.js';
 import { calcFluxo, contasReceberPorCanal, calcDashboard, calcAging, calcProjecao } from '../calc.js';
 import { MESES } from '../config.js';
 import { pageHead, thMeses, moneyInput, delta, chartDlBtn } from '../ui.js';
@@ -28,6 +28,7 @@ function agingTable(titulo, ag, buckets, realLabel) {
 
 export function render(container) {
   const s = getState();
+  const ro = isAggregated();   // consolidado: plataformas somadas, só-leitura (edição é por empresa)
   const ano = anoAtivo(s);
   const f = calcFluxo(s);
   const d = calcDashboard(s);
@@ -54,21 +55,22 @@ export function render(container) {
 
   const plataformaTabela = (tipo, titulo, nota) => {
     const list = s.plataformas[tipo] || [];
-    const rows = list.map(p => `
-      <tr>
+    const rows = list.map(p => ro
+      ? `<tr><td>${esc(p.nome)}</td><td class="num">${fmtBRL0(num(p.valor))}</td></tr>`
+      : `<tr>
         <td><input class="inp-flush" data-pf="${tipo}" data-id="${p.id}" data-campo="nome" value="${esc(p.nome)}"></td>
         <td class="num">${moneyInput(p.valor, `data-pf="${tipo}" data-id="${p.id}" data-campo="valor"`, 130)}</td>
         <td><button class="btn btn-sm" data-action="rm-pf" data-tipo="${tipo}" data-id="${p.id}">🗑</button></td>
-      </tr>`).join('') || `<tr><td colspan="3" class="empty">Sem itens.</td></tr>`;
+      </tr>`).join('') || `<tr><td colspan="${ro ? 2 : 3}" class="empty">Sem itens.</td></tr>`;
     const tot = list.reduce((a, p) => a + num(p.valor), 0);
     return `<div class="card card-pad" style="margin-bottom:14px">
       <div class="flex" style="justify-content:space-between"><strong>${esc(titulo)}</strong>
-        <button class="btn btn-sm btn-primary" data-action="add-pf" data-tipo="${tipo}">+ item</button></div>
+        ${ro ? '' : `<button class="btn btn-sm btn-primary" data-action="add-pf" data-tipo="${tipo}">+ item</button>`}</div>
       <div class="hint" style="margin:6px 0">${esc(nota)}</div>
       <div class="table-wrap" style="box-shadow:none">
-        <table><thead><tr><th>Plataforma</th><th class="num">Valor</th><th></th></tr></thead>
+        <table><thead><tr><th>Plataforma</th><th class="num">Valor</th>${ro ? '' : '<th></th>'}</tr></thead>
         <tbody>${rows}</tbody>
-        <tfoot><tr class="row-total"><td>Total</td><td class="num">${fmtBRL0(tot)}</td><td></td></tr></tfoot></table>
+        <tfoot><tr class="row-total"><td>Total</td><td class="num">${fmtBRL0(tot)}</td>${ro ? '' : '<td></td>'}</tr></tfoot></table>
       </div></div>`;
   };
 
@@ -160,15 +162,18 @@ export function render(container) {
 }
 
 function wire(container) {
+  const ro = isAggregated();   // consolidado: bloqueia edição das plataformas (mês-receber é filtro de UI, segue ativo)
   container.addEventListener('change', (ev) => {
     const t = ev.target;
     if (t.id === 'mes-receber') { setFluxoMesReceber(Number(t.value)); return; }
+    if (ro) return;
     if (t.dataset.pf) {
       const campo = t.dataset.campo;
       setPlataformaCampo(t.dataset.pf, t.dataset.id, campo, campo === 'valor' ? num(t.value) : t.value);
     }
   });
   container.addEventListener('click', (ev) => {
+    if (ro) return;
     const b = ev.target.closest('[data-action]');
     if (!b) return;
     const { action, tipo, id } = b.dataset;

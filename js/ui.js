@@ -101,6 +101,22 @@ export function statusFilterChips(itens, ativos = []) {
   }).join('') + `</div>`;
 }
 
+// Busca AO VIVO com debounce + restauração de foco/cursor. O re-render recria o <input>, então
+// (1) o debounce evita re-render a cada tecla (sem lag) e (2) após aplicar, devolvemos o foco/cursor.
+export function wireBusca(container, inputId, onBusca, delay = 200) {
+  let timer = null;
+  container.addEventListener('input', (ev) => {
+    const el = ev.target; if (el.id !== inputId) return;
+    const pos = el.selectionStart, val = el.value;
+    clearTimeout(timer);
+    timer = setTimeout(() => {
+      onBusca(val);                                    // dispara o re-render da view
+      const novo = document.getElementById(inputId);   // input recriado → restaura foco/cursor
+      if (novo) { novo.focus(); try { novo.setSelectionRange(pos, pos); } catch (_) {} }
+    }, delay);
+  });
+}
+
 // ---- Autocomplete custom (busca "contém" + cadastrar dentro do campo) --------------------
 let _acPop = null;
 function _acEl() {

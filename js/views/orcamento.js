@@ -1,5 +1,5 @@
 // views/orcamento.js — Orçamento de Despesas (grade editável) + metas derivadas.
-import { getState, setOrcamento } from '../store.js';
+import { getState, setOrcamento, isAggregated } from '../store.js';
 import { GRUPOS } from '../config.js';
 import { calcOrcamento } from '../calc.js';
 import { pageHead, thMeses, moneyInput, exportToolbar, wireExport, collapseAllBtn, wireCollapse } from '../ui.js';
@@ -18,10 +18,11 @@ export function render(container) {
   const s = getState();
   const ano = anoAtivo(s);
   const o = calcOrcamento(s);
+  const ro = isAggregated();   // consolidado: orçamento somado, só-leitura (edição é por empresa)
 
   const catRow = (cat, gid) => {
     const arr = o.orc(cat.id);
-    const cells = arr.map((v, i) => `<td class="num">${moneyInput(v, `data-cat-id="${cat.id}" data-mes="${i}"`, 110)}</td>`).join('');
+    const cells = arr.map((v, i) => `<td class="num">${ro ? fmtBRL0(v) : moneyInput(v, `data-cat-id="${cat.id}" data-mes="${i}"`, 110)}</td>`).join('');
     const tot = arr.reduce((a, b) => a + b, 0);
     return `<tr class="cat-row" data-grpcat="${gid}"><td>${esc(cat.nome)}</td>${cells}<td class="num">${fmtBRL0(tot)}</td></tr>`;
   };
@@ -49,7 +50,7 @@ export function render(container) {
   container.innerHTML = `
     ${pageHead('Orçamento de Despesas', `Planejamento de ${ano} · Meta de Receita vem dos canais (Cadastro).`)}
     ${exportToolbar(collapseAllBtn())}
-    <div class="callout">Edite os valores por categoria. Os grupos e metas são calculados automaticamente. Cada ano tem seu próprio orçamento.</div>
+    <div class="callout">${ro ? '👁 <strong>Consolidado:</strong> somatório dos orçamentos das empresas selecionadas — somente leitura. Selecione 1 empresa no topo para editar.' : 'Edite os valores por categoria. Os grupos e metas são calculados automaticamente. Cada ano tem seu próprio orçamento.'}</div>
     <div class="table-wrap tbl-wide" style="margin-top:14px">
       <table>
         <thead><tr><th style="min-width:260px">Grupo / Categoria</th>${thMeses(ano)}</tr></thead>
@@ -57,7 +58,7 @@ export function render(container) {
       </table>
     </div>`;
 
-  container.addEventListener('change', (ev) => {
+  if (!ro) container.addEventListener('change', (ev) => {
     const t = ev.target;
     if (t.dataset.catId && t.dataset.mes !== undefined) {
       setOrcamento(ano, t.dataset.catId, Number(t.dataset.mes), num(t.value));

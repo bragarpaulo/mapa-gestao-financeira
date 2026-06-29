@@ -3,7 +3,7 @@
 import { getState, addVenda, duplicarVenda, removerVenda, removerVendas, removerVendaAFrente, setVendaCampo, setVendasFiltro, setVendasSort, ensureCliente, ensureProduto, aplicarRecorrenciaVenda, nomeCanal, nomeReceitaCat, nomeConta, isAggregated } from '../store.js';
 import { vendaDerivada } from '../calc.js';
 import { STATUS_VENDA } from '../config.js';
-import { pageHead, options, badgeVenda, moneyInput, fmtMoneyInput, statusFilterChips, attachAutocomplete, openRecPopover, openChoicePopover } from '../ui.js';
+import { pageHead, options, badgeVenda, moneyInput, fmtMoneyInput, statusFilterChips, attachAutocomplete, openRecPopover, openChoicePopover, wireBusca } from '../ui.js';
 import { esc, num, fmtBRL0, fmtBRL, fmtData, norm, noPeriodo, anosSelecionados } from '../util.js';
 import { nomeRecorrencia } from '../recurrence.js';
 
@@ -97,8 +97,7 @@ function renderConsolidado(container, s) {
       <thead><tr><th>Empresa</th><th>Data da Venda</th><th>Cliente</th><th>Produto/Pedido</th><th class="num">Valor</th><th>Vencimento</th><th>Recebimento</th><th>Status</th></tr></thead>
       <tbody>${rows}</tbody>
     </table></div>`;
-  const busca = container.querySelector('#f-busca');
-  if (busca) busca.addEventListener('input', () => setVendasFiltro({ busca: busca.value }));
+  wireBusca(container, 'f-busca', (val) => setVendasFiltro({ busca: val }));
   container.querySelectorAll('[data-statusfilter]').forEach(ch => ch.addEventListener('click', () => {
     const st = ch.dataset.statusfilter, cur = (getState().ui.vendasFiltro?.status) || [];
     setVendasFiltro({ status: cur.includes(st) ? cur.filter(x => x !== st) : [...cur, st] });
@@ -184,15 +183,8 @@ function wire(container) {
     setVendaCampo(id, campo, t.value, { silent: true });   // selects também silenciosos → não reordena
     atualizarDerivada(container, id);
   });
-  // Busca AO VIVO: filtra conforme digita/apaga, sem precisar de Enter. O re-render recria a view,
-  // então restauramos o foco e a posição do cursor no campo de busca para a digitação seguir fluida.
-  container.addEventListener('input', (ev) => {
-    const t = ev.target; if (t.id !== 'f-busca') return;
-    const pos = t.selectionStart;
-    setVendasFiltro({ busca: t.value });
-    const novo = document.getElementById('f-busca');
-    if (novo) { novo.focus(); try { novo.setSelectionRange(pos, pos); } catch (_) {} }
-  });
+  // Busca AO VIVO (debounce + restaura foco): filtra conforme digita, sem lag nem perder o cursor.
+  wireBusca(container, 'f-busca', (val) => setVendasFiltro({ busca: val }));
   container.addEventListener('blur', (ev) => {
     const t = ev.target; if (!(t instanceof HTMLInputElement) || !t.classList.contains('money')) return;
     if (t.dataset.id && t.dataset.campo) { setVendaCampo(t.dataset.id, t.dataset.campo, num(t.value), { silent: true }); t.value = fmtMoneyInput(num(t.value)); atualizarDerivada(container, t.dataset.id); }
