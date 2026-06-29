@@ -112,7 +112,7 @@ export async function getMyAccess() {
     const status = sub.status || 'pending';
     const ativo = ['active', 'trialing'].includes(status);
     if (ativo) {
-      let planLimit = Infinity;
+      let planLimit = 1;   // active sem plano definido → limite padrão 1 (alinha com user_max_companies no banco)
       if (sub.plan_code) { const { data: pl } = await c.from('plans').select('max_companies').eq('code', sub.plan_code).maybeSingle(); if (pl) planLimit = pl.max_companies; }
       return { admin: false, demo: false, readOnly: false, planLimit, status, plan: sub.plan_code };
     }
@@ -172,6 +172,16 @@ export async function adminSetUserEmail(userId, email) { return callAdmin('set_e
 export async function adminSetUserPassword(userId, password) { return callAdmin('set_password', { user_id: userId, password }); }
 export async function adminGenPassword(userId) { return callAdmin('gen_password', { user_id: userId }); }
 export async function adminCreateAdmin(email, password) { return callAdmin('create_admin', { email, password }); }
+// Cria um ASSINANTE e, opcionalmente, já vincula um plano + status (ex.: grátis com status 'active' = acesso total).
+export async function adminCreateSubscriber(email, password, nome, planCode, status) {
+  const r = await callAdmin('create_user', { email, password, nome });
+  if (!r || !r.ok) return r || { ok: false, error: 'falhou' };
+  if (planCode || status) {
+    const okSub = await adminSetSubscription(r.id, planCode || null, status || 'active');
+    if (!okSub) return { ok: false, id: r.id, error: 'Assinante criado, mas falhou ao vincular o plano. Defina o plano na ficha do assinante.' };
+  }
+  return { ok: true, id: r.id };
+}
 export async function adminSetAdmin(userId, value) { return callAdmin('set_admin', { user_id: userId, value }); }
 // Equipe (seats) — admin (qualquer conta) ou o próprio dono (sua conta)
 export async function listMembers(ownerId) {

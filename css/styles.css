@@ -637,5 +637,10 @@ tr.row-neg > td:first-child { box-shadow: inset 3px 0 0 var(--red); }
 .sub-sec { padding: 14px 0; border-bottom: 1px solid var(--line); }
 .sub-sec:last-child { border-bottom: 0; padding-bottom: 2px; }
 .sub-sec .ig-sub { margin-bottom: 9px; }
+.gc-add-row { display: flex; justify-content: flex-end; margin-bottom: 10px; }
+.cfg-check { flex-direction: row !important; align-items: center; gap: 8px; }
+.cfg-check input { width: auto; }
+.frm-actions { display: flex; align-items: center; gap: 12px; margin-top: 16px; }
+.frm-err { color: var(--red); font-size: 13px; }
 .cfg-field select, .cfg-field input { font: inherit; }
 .nav-admin { margin-top: 4px; }

@@ -55,6 +55,14 @@ Deno.serve(async (req: Request) => {
     if (a === 'gen_password') { if (!admin) return forbid(); const senha = rnd(); return json({ ok: await setUser(body.user_id, { password: senha }), senha }); }
     if (a === 'create_admin') { if (!admin) return forbid(); const id = await createUser(body.email, body.password || rnd()); if (!id) return json({ error: 'não criou' }, 400); await rest(`profiles?id=eq.${id}`, { method: 'PATCH', body: JSON.stringify({ is_admin: true, purchase_email: body.email }) }); return json({ ok: true, id }); }
     if (a === 'set_admin') { if (!admin) return forbid(); return json({ ok: (await rest(`profiles?id=eq.${body.user_id}`, { method: 'PATCH', body: JSON.stringify({ is_admin: !!body.value }) })).ok }); }
+    if (a === 'create_user') {   // cria ASSINANTE (não-admin); a assinatura/plano é definida depois pelo navegador (RLS admin)
+      if (!admin) return forbid();
+      if (await uidExist(body.email)) return json({ error: 'e-mail já cadastrado' }, 400);
+      const id = await createUser(body.email, body.password || rnd());
+      if (!id) return json({ error: 'não criou' }, 400);
+      await rest(`profiles?id=eq.${id}`, { method: 'PATCH', body: JSON.stringify({ is_admin: false, purchase_email: body.email, full_name: body.nome || null, setor: body.setor || null }) });
+      return json({ ok: true, id });
+    }
     if (a === 'create_member') {
       const ownerId = body.owner_id || uid;
       if (!admin && ownerId !== uid) return forbid();        // dono só adiciona na PRÓPRIA conta
