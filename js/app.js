@@ -1,6 +1,6 @@
 // app.js — bootstrap: navegação, render reativo, hambúrguer, cabeçalho global (empresa + período + tema).
 import {
-  getState, subscribe, resetDemo, clearAll,
+  getState, subscribe, clearAll,
   getCompanies, getActiveId, setActiveEmpresa, addEmpresa, removerEmpresa, setEmpresaCampo,
   getAnosDisponiveis, getAnosSel, toggleAno, setAnosSel, setPeriodoMeses,
   getTema, setTema,
@@ -397,6 +397,5 @@ window.__import = importmod;
 window.__cloud = cloud;
 
 document.getElementById('btn-tema').addEventListener('click', toggleTema);
-document.getElementById('btn-restaurar').addEventListener('click', () => { if (confirm('Restaurar a demonstração? Isso substitui TUDO pela "Empresa Demonstrativa" (2025 + 2026).')) resetDemo(); });
 document.getElementById('btn-limpar').addEventListener('click', () => { if (confirm('Apagar TODAS as empresas e dados e começar do zero?')) clearAll(); });
 document.getElementById('btn-sair').addEventListener('click', async () => { if (confirm('Sair da conta?')) { await cloud.signOut(); } });
