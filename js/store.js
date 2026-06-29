@@ -276,8 +276,25 @@ export { cloudEnabled };
 export function getCompanies() { return root.companies.map(c => ({ id: c.id, nome: c.empresa.nome, cnpj: c.empresa.cnpj })); }
 export function getCompaniesFull() { return root.companies; }   // objetos completos (p/ Conciliação consolidar)
 export function getActiveId() { return root.activeId; }
-export function setActiveEmpresa(id) { if (root.companies.find(c => c.id === id)) { root.activeId = id; root.selectedIds = [id]; aplicarVigente(active()); save(); emit(); } }
-// Define a seleção do cabeçalho para o ANO e MÊS vigentes (chamado no boot e ao trocar de empresa).
+export function setActiveEmpresa(id) {
+  if (!root.companies.find(c => c.id === id)) return;
+  const prev = active();   // empresa que estava ativa: PRESERVA o ano/mês que o usuário já selecionou
+  const sel = (prev && prev.ui) ? { anosSel: [...(prev.ui.anosSel || [])], anoAtivo: prev.ui.anoAtivo, periodoMeses: [...(prev.ui.periodoMeses || [])] } : null;
+  root.activeId = id; root.selectedIds = [id];
+  if (sel) aplicarSelecao(active(), sel); else aplicarVigente(active());
+  save(); emit();
+}
+// Carrega no cabeçalho a MESMA seleção de ano/mês ao trocar de empresa (clampa aos anos que a nova empresa tem).
+function aplicarSelecao(c, sel) {
+  if (!c || !c.ui) return;
+  const anos = c.empresa.anos || [];
+  let anosSel = (sel.anosSel || []).map(Number).filter(y => anos.includes(y));
+  if (!anosSel.length) anosSel = anos.length ? [anos[anos.length - 1]] : [anoCorrente()];
+  c.ui.anosSel = anosSel;
+  c.ui.anoAtivo = anosSel.includes(Number(sel.anoAtivo)) ? Number(sel.anoAtivo) : anosSel[anosSel.length - 1];
+  c.ui.periodoMeses = [...(sel.periodoMeses || [])];   // índices de mês (0-11) valem em qualquer ano
+}
+// Define a seleção do cabeçalho para o ANO e MÊS vigentes (chamado no boot).
 function aplicarVigente(c) { if (!c || !c.ui) return; const y = anoCorrente(); c.ui.anosSel = [y]; c.ui.anoAtivo = y; c.ui.periodoMeses = [mesCorrente()]; }
 export function aplicarPeriodoVigente() { updateUI(s => aplicarVigente(s), { silent: true }); }
 export function addEmpresa() {
