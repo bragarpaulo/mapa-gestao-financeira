@@ -25,6 +25,8 @@ function rnd(): string { const b = new Uint8Array(9); crypto.getRandomValues(b);
 async function setUser(id: string, patch: any): Promise<boolean> { const r = await fetch(`${URL}/auth/v1/admin/users/${id}`, { method: 'PUT', headers: H, body: JSON.stringify(patch) }); return r.ok; }
 async function createUser(email: string, senha: string): Promise<string | null> { const r = await fetch(`${URL}/auth/v1/admin/users`, { method: 'POST', headers: H, body: JSON.stringify({ email, password: senha, email_confirm: true }) }); const j = await r.json().catch(() => ({})); return r.ok ? (j.id || (j.user && j.user.id) || null) : null; }
 async function uidExist(email: string): Promise<string | null> { const r = await rest('rpc/uid_por_email', { method: 'POST', body: JSON.stringify({ p_email: email }) }); return (typeof r.data === 'string' && r.data) ? r.data : null; }
+async function maxSeats(ownerId: string): Promise<number> { const r = await rest('rpc/user_max_seats', { method: 'POST', body: JSON.stringify({ uid: ownerId }) }); const n = Number(r.data); return Number.isFinite(n) && n > 0 ? n : 1; }
+async function countMembers(ownerId: string, exceptId: string): Promise<number> { const r = await rest(`members?account_owner_id=eq.${ownerId}&member_id=neq.${exceptId}&select=member_id`); return Array.isArray(r.data) ? r.data.length : 0; }
 
 async function emailMembro(to: string, nome: string, senha: string, dono: string) {
   const cfg: any = {}; const r = await rest('integrations?select=key,value'); if (Array.isArray(r.data)) r.data.forEach((x: any) => { if (x.value) cfg[x.key] = x.value; });
@@ -66,11 +68,16 @@ Deno.serve(async (req: Request) => {
     if (a === 'create_member') {
       const ownerId = body.owner_id || uid;
       if (!admin && ownerId !== uid) return forbid();        // dono só adiciona na PRÓPRIA conta
-      const senha = rnd();
       let id = await uidExist(body.email);
+      // Limite de seats do plano do dono — checa ANTES de criar o usuário (evita órfão).
+      const lim = await maxSeats(ownerId);
+      const usados = await countMembers(ownerId, id || '00000000-0000-0000-0000-000000000000');
+      if (usados >= lim) return json({ error: `Limite de ${lim} membro(s) de equipe do plano atingido. Faça upgrade do plano.` }, 400);
+      const senha = rnd();
       if (!id) id = await createUser(body.email, senha);
       if (!id) return json({ error: 'não criou membro' }, 400);
-      await rest('members', { method: 'POST', headers: { Prefer: 'resolution=merge-duplicates' }, body: JSON.stringify({ member_id: id, account_owner_id: ownerId, email: body.email, nome: body.nome || '', role: body.role || 'membro' }) });
+      const ins = await rest('members', { method: 'POST', headers: { Prefer: 'resolution=merge-duplicates' }, body: JSON.stringify({ member_id: id, account_owner_id: ownerId, email: body.email, nome: body.nome || '', role: body.role || 'membro' }) });
+      if (!ins.ok) return json({ error: (ins.data && ins.data.message) || 'Não foi possível adicionar (limite de equipe do plano?).' }, 400);   // trigger de seats como backstop
       const dn = await rest(`profiles?id=eq.${ownerId}&select=full_name,email`); const dono = (Array.isArray(dn.data) && dn.data[0] && (dn.data[0].full_name || dn.data[0].email)) || 'O titular';
       await emailMembro(body.email, body.nome || '', senha, dono);
       return json({ ok: true, id, senha });

@@ -100,21 +100,21 @@ export async function updateProfile(patch) {
 //   admin → tudo. assinatura ATIVA → edita (limite do plano). assinatura CANCELADA → seus dados, só-leitura.
 //   SEM assinatura (nunca comprou) → modo DEMO (vê dados de exemplo, só-leitura; ao comprar com o mesmo e-mail vira completo).
 export async function getMyAccess() {
-  const demo = { admin: false, demo: true, readOnly: true, planLimit: 0, status: 'none', plan: null };
+  const demo = { admin: false, demo: true, readOnly: true, planLimit: 0, seatLimit: 0, status: 'none', plan: null };
   try {
     const c = client(); if (!c) return demo;
     const u = await currentUser(); if (!u) return demo;
     const prof = await getProfile();
-    if (prof && prof.is_admin) return { admin: true, demo: false, readOnly: false, planLimit: Infinity, status: 'active', plan: null };
+    if (prof && prof.is_admin) return { admin: true, demo: false, readOnly: false, planLimit: Infinity, seatLimit: Infinity, status: 'active', plan: null };
     const ownerId = (await getMeuDono()) || u.id;   // membro herda a assinatura do DONO da conta
     const { data: sub } = await c.from('subscriptions').select('plan_code,status').eq('owner_id', ownerId).maybeSingle();
     if (!sub) return demo;   // nunca assinou → demo
     const status = sub.status || 'pending';
     const ativo = ['active', 'trialing'].includes(status);
     if (ativo) {
-      let planLimit = 1;   // active sem plano definido → limite padrão 1 (alinha com user_max_companies no banco)
-      if (sub.plan_code) { const { data: pl } = await c.from('plans').select('max_companies').eq('code', sub.plan_code).maybeSingle(); if (pl) planLimit = pl.max_companies; }
-      return { admin: false, demo: false, readOnly: false, planLimit, status, plan: sub.plan_code };
+      let planLimit = 1, seatLimit = 1;   // active sem plano definido → limites padrão 1 (alinha com o banco)
+      if (sub.plan_code) { const { data: pl } = await c.from('plans').select('max_companies,max_seats').eq('code', sub.plan_code).maybeSingle(); if (pl) { planLimit = pl.max_companies; seatLimit = pl.max_seats; } }
+      return { admin: false, demo: false, readOnly: false, planLimit, seatLimit, status, plan: sub.plan_code };
     }
     // pending/canceled/past_due → tem registro mas não está ativo
     const { data: cfg } = await c.from('app_config').select('value').eq('key', 'geral').maybeSingle();

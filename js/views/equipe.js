@@ -18,17 +18,20 @@ export function render(container) {
 
 async function loadTeam(c) {
   const id = await meuId(); if (!id) return;
-  const members = await cloud.listMembers(id);
+  const [members, acc] = [await cloud.listMembers(id), await cloud.getMyAccess()];
+  const seatMax = (acc && Number.isFinite(acc.seatLimit)) ? acc.seatLimit : 1;   // limite de membros do plano
+  const lotado = members.length >= seatMax;
   const rows = members.map(m => `<tr><td>${esc(m.email || '')}</td><td>${esc(m.nome || '')}</td><td><button class="btn btn-sm" data-rm="${m.member_id}">Remover</button></td></tr>`).join('') || '<tr><td colspan="3" class="empty">Sem membros ainda.</td></tr>';
-  c.querySelector('#eq-team').innerHTML = `<strong>Minha equipe</strong>
+  c.querySelector('#eq-team').innerHTML = `<strong>Minha equipe</strong> <span class="hint">· ${members.length}/${seatMax} seats do seu plano</span>
     <p class="hint" style="margin:6px 0 10px">Cada membro recebe um login próprio e acessa os MESMOS dados da sua conta.</p>
     <div class="table-wrap" style="box-shadow:none"><table><thead><tr><th>E-mail</th><th>Nome</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>
-    <div class="toolbar" style="gap:6px;margin-top:8px"><input id="eq-email" type="email" placeholder="e-mail do membro" style="width:220px"><input id="eq-nome" type="text" placeholder="nome"><button class="btn btn-sm btn-primary" id="eq-add">+ Convidar membro</button></div>
-    <div id="eq-out" class="hint" style="margin-top:8px"></div>`;
+    <div class="toolbar" style="gap:6px;margin-top:8px"><input id="eq-email" type="email" placeholder="e-mail do membro" style="width:220px" ${lotado ? 'disabled' : ''}><input id="eq-nome" type="text" placeholder="nome" ${lotado ? 'disabled' : ''}><button class="btn btn-sm btn-primary" id="eq-add" ${lotado ? 'disabled' : ''}>+ Convidar membro</button></div>
+    <div id="eq-out" class="hint" style="margin-top:8px">${lotado ? `Limite de ${seatMax} membro(s) do seu plano atingido. Faça upgrade para adicionar mais.` : ''}</div>`;
   c.querySelectorAll('[data-rm]').forEach(b => b.onclick = async () => { if (confirm('Remover o acesso deste membro?')) { await cloud.removeMember(b.dataset.rm); loadTeam(c); } });
   c.querySelector('#eq-add').onclick = async () => {
     const email = c.querySelector('#eq-email').value.trim(), nome = c.querySelector('#eq-nome').value.trim();
     if (!email) { alert('Informe o e-mail.'); return; }
+    if (members.length >= seatMax) { alert(`Limite de ${seatMax} membro(s) do seu plano atingido.`); return; }
     const r = await cloud.addMember(id, email, nome);
     if (r && r.ok) { c.querySelector('#eq-out').textContent = '✓ Convite enviado por e-mail.' + (r.senha ? ` Senha temporária: ${r.senha}` : ''); loadTeam(c); }
     else alert('Erro ao convidar: ' + (r && r.error || ''));

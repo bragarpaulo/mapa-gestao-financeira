@@ -132,6 +132,7 @@ function openSubscriber(u) {
     const planOpts = planOptsFn(plans);
     async function draw() {
       const [members, waNums, uso] = [await cloud.listMembers(u.id), await cloud.waNumbersDe(u.id), await cloud.adminAiUsage()];
+      const seatMax = (plans.find(p => p.code === (u.sub && u.sub.plan_code)) || {}).max_seats || 1;   // limite de membros do plano
       body.innerHTML = `
         <div class="sub-sec"><div class="ig-sub">Dados & login</div>
           <div class="grid grid-2">
@@ -147,7 +148,7 @@ function openSubscriber(u) {
           <div id="sb-pw-out" class="hint" style="margin-top:6px"></div></div>
         <div class="sub-sec"><div class="ig-sub">Assinatura</div>
           <div class="toolbar" style="gap:6px"><select id="sb-plan">${planOpts(u.sub && u.sub.plan_code)}</select><select id="sb-status">${stOptsFn((u.sub && u.sub.status) || 'pending')}</select><button class="btn btn-sm btn-primary" id="sb-save-sub">Salvar</button><button class="btn btn-sm" id="sb-renew">Renovar</button><button class="btn btn-sm" id="sb-cancel">Cancelar</button></div></div>
-        <div class="sub-sec"><div class="ig-sub">Equipe (membros com login próprio, mesmos dados)</div>
+        <div class="sub-sec"><div class="ig-sub">Equipe <span class="hint">· ${members.length}/${seatMax} seats do plano</span></div>
           <div class="table-wrap" style="box-shadow:none"><table><thead><tr><th>E-mail</th><th>Nome</th><th></th></tr></thead><tbody>${members.map(m => `<tr><td>${esc(m.email || '')}</td><td>${esc(m.nome || '')}</td><td><button class="btn btn-sm" data-rmmem="${m.member_id}">Remover</button></td></tr>`).join('') || '<tr><td colspan="3" class="empty">Sem membros.</td></tr>'}</tbody></table></div>
           <div class="toolbar" style="gap:6px;margin-top:6px"><input id="sb-mem-email" type="email" placeholder="e-mail do membro" style="width:200px"><input id="sb-mem-nome" type="text" placeholder="nome"><button class="btn btn-sm" id="sb-add-mem">+ Adicionar</button></div></div>
         <div class="sub-sec"><div class="ig-sub">IA no WhatsApp <span class="hint">· ${uso.i + uso.o} tokens</span></div>
@@ -170,7 +171,7 @@ function openSubscriber(u) {
       body.querySelector('#sb-cancel').onclick = async (e) => { flash(e.target, await salvarSub('canceled')); draw(); };
       // Equipe
       body.querySelectorAll('[data-rmmem]').forEach(b => b.onclick = async () => { if (confirm('Remover este membro (perde o acesso)?')) { await cloud.removeMember(b.dataset.rmmem); draw(); } });
-      body.querySelector('#sb-add-mem').onclick = async () => { const email = body.querySelector('#sb-mem-email').value.trim(), nome = body.querySelector('#sb-mem-nome').value.trim(); if (!email) { alert('Informe o e-mail.'); return; } const r = await cloud.addMember(u.id, email, nome); if (r && r.ok) draw(); else alert('Erro: ' + (r && r.error || '')); };
+      body.querySelector('#sb-add-mem').onclick = async () => { const email = body.querySelector('#sb-mem-email').value.trim(), nome = body.querySelector('#sb-mem-nome').value.trim(); if (!email) { alert('Informe o e-mail.'); return; } if (members.length >= seatMax) { alert(`Limite de ${seatMax} membro(s) do plano deste assinante. Faça upgrade do plano.`); return; } const r = await cloud.addMember(u.id, email, nome); if (r && r.ok) draw(); else alert('Erro: ' + (r && r.error || '')); };
       // WhatsApp
       body.querySelectorAll('[data-rmwa]').forEach(b => b.onclick = async () => { await cloud.adminDelWaNumber(b.dataset.rmwa); draw(); });
       body.querySelector('#sb-add-wa').onclick = async () => { const phone = (body.querySelector('#sb-wa').value || '').replace(/\D/g, ''); if (!phone) { alert('Informe o número.'); return; } if (await cloud.adminAddWaNumber(phone, u.id)) draw(); };
