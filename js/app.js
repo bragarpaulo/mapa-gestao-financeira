@@ -310,22 +310,34 @@ function traduzErroAuth(m) {
   if (/at least/i.test(m)) return 'Senha muito curta (mínimo 6 caracteres).';
   return m;
 }
+// Casca branded (logo GPR + identidade) usada por login/reset/nova-senha/termos.
+function authShell(titulo, sub, inner, wide = false) {
+  return `
+    <div class="auth-shell${wide ? ' auth-wide' : ''}">
+      <div class="auth-brand">
+        <span class="auth-logo">${LOGO_SVG}</span>
+        <div class="auth-brand-txt"><strong>GPR</strong><span>Gestão Para Resultado</span></div>
+      </div>
+      <h2 class="auth-title">${esc(titulo)}</h2>
+      ${sub ? `<p class="auth-subtitle">${esc(sub)}</p>` : ''}
+      ${inner}
+    </div>`;
+}
 function renderLogin(modo = 'login', msg = '') {
   _appReady = false;
   const el = authGateEl();
-  const titulo = modo === 'signup' ? 'Criar conta' : (modo === 'reset' ? 'Recuperar senha' : 'Entrar');
-  el.innerHTML = `
-    <div class="auth-box">
-      <div class="auth-brand"><span class="auth-badge">📊</span><div><strong>GPR</strong><div class="auth-sub">Gestão Para Resultado</div></div></div>
-      <h2>${titulo}</h2>
-      ${msg ? `<div class="auth-msg ok">${esc(msg)}</div>` : ''}
-      <label>E-mail</label>
-      <input id="auth-email" type="email" autocomplete="email" placeholder="voce@empresa.com">
-      ${modo !== 'reset' ? `<label>Senha</label><input id="auth-pw" type="password" autocomplete="${modo === 'signup' ? 'new-password' : 'current-password'}" placeholder="••••••••">` : ''}
-      <button id="auth-go" class="btn btn-primary auth-go">${titulo}</button>
-      <div class="auth-links">${modo === 'login' ? `<a data-auth="signup">Criar conta</a> · <a data-auth="reset">Esqueci a senha</a>` : `<a data-auth="login">← Voltar ao login</a>`}</div>
-      <div id="auth-err" class="auth-err"></div>
-    </div>`;
+  const titulo = modo === 'signup' ? 'Criar conta' : (modo === 'reset' ? 'Recuperar senha' : 'Bem-vindo de volta');
+  const sub = modo === 'signup' ? 'Crie sua conta para começar.' : (modo === 'reset' ? 'Enviaremos um link para você redefinir a senha.' : 'Entre para acessar sua gestão financeira.');
+  const btnLbl = modo === 'signup' ? 'Criar conta' : (modo === 'reset' ? 'Enviar link' : 'Entrar');
+  const inner = `
+    ${msg ? `<div class="auth-msg ok">${esc(msg)}</div>` : ''}
+    <label class="auth-label">E-mail</label>
+    <input id="auth-email" class="auth-input" type="email" autocomplete="email" placeholder="voce@empresa.com">
+    ${modo !== 'reset' ? `<label class="auth-label">Senha</label><input id="auth-pw" class="auth-input" type="password" autocomplete="${modo === 'signup' ? 'new-password' : 'current-password'}" placeholder="••••••••">` : ''}
+    <button id="auth-go" class="auth-btn">${btnLbl}</button>
+    <div class="auth-links">${modo === 'login' ? `<a data-auth="signup">Criar conta</a><span class="auth-dot">·</span><a data-auth="reset">Esqueci a senha</a>` : `<a data-auth="login">← Voltar ao login</a>`}</div>
+    <div id="auth-err" class="auth-err"></div>`;
+  el.innerHTML = authShell(titulo, sub, inner);
   const err = (m) => { el.querySelector('#auth-err').textContent = m || ''; };
   el.querySelectorAll('[data-auth]').forEach(a => a.onclick = () => renderLogin(a.dataset.auth));
   const go = el.querySelector('#auth-go');
@@ -335,7 +347,7 @@ function renderLogin(modo = 'login', msg = '') {
     if (!email) { err('Informe o e-mail.'); return; }
     err(''); go.disabled = true; const lbl = go.textContent; go.textContent = 'Aguarde…';
     try {
-      if (modo === 'reset') { const { error } = await cloud.resetPassword(email); renderLogin('login', error ? '' : 'Se o e-mail existir, enviamos um link de recuperação.'); if (error) err(error.message); return; }
+      if (modo === 'reset') { const { error } = await cloud.resetPassword(email); renderLogin('login', error ? '' : 'Se o e-mail existir, enviamos um link de recuperação. Verifique sua caixa (e o spam).'); if (error) err(error.message); return; }
       const { data, error } = (modo === 'signup') ? await cloud.signUp(email, pw) : await cloud.signIn(email, pw);
       if (error) { err(traduzErroAuth(error.message)); go.disabled = false; go.textContent = lbl; return; }
       if (modo === 'signup' && data && data.user && !data.session) { renderLogin('login', 'Conta criada! Agora faça login.'); return; }
@@ -345,16 +357,41 @@ function renderLogin(modo = 'login', msg = '') {
   el.querySelectorAll('input').forEach(i => i.addEventListener('keydown', e => { if (e.key === 'Enter') go.click(); }));
   setTimeout(() => { const f = el.querySelector('#auth-email'); if (f) f.focus(); }, 50);
 }
+// Pós-clique no link de "Esqueci a senha": define a nova senha (sessão de recovery já ativa).
+function renderNovaSenha(msg = '') {
+  _appReady = false;
+  const el = authGateEl();
+  const inner = `
+    ${msg ? `<div class="auth-msg ok">${esc(msg)}</div>` : ''}
+    <label class="auth-label">Nova senha</label>
+    <input id="auth-pw1" class="auth-input" type="password" autocomplete="new-password" placeholder="••••••••">
+    <label class="auth-label">Confirmar nova senha</label>
+    <input id="auth-pw2" class="auth-input" type="password" autocomplete="new-password" placeholder="••••••••">
+    <button id="auth-go" class="auth-btn">Salvar nova senha</button>
+    <div id="auth-err" class="auth-err"></div>`;
+  el.innerHTML = authShell('Definir nova senha', 'Escolha uma senha com pelo menos 6 caracteres.', inner);
+  const err = (m) => { el.querySelector('#auth-err').textContent = m || ''; };
+  const go = el.querySelector('#auth-go');
+  go.onclick = async () => {
+    const p1 = el.querySelector('#auth-pw1').value || '', p2 = el.querySelector('#auth-pw2').value || '';
+    if (p1.length < 6) { err('Senha muito curta (mínimo 6 caracteres).'); return; }
+    if (p1 !== p2) { err('As senhas não coincidem.'); return; }
+    err(''); go.disabled = true; go.textContent = 'Salvando…';
+    const { error } = await cloud.updatePassword(p1);
+    if (error) { err(error.message); go.disabled = false; go.textContent = 'Salvar nova senha'; return; }
+    _bootedUid = null; bootApp();   // sessão de recovery ativa → entra direto
+  };
+  el.querySelectorAll('input').forEach(i => i.addEventListener('keydown', e => { if (e.key === 'Enter') go.click(); }));
+  setTimeout(() => { const f = el.querySelector('#auth-pw1'); if (f) f.focus(); }, 50);
+}
 function renderTermos(t) {
   const el = authGateEl();
-  el.innerHTML = `
-    <div class="auth-box auth-wide">
-      <h2>Termos de Uso & Privacidade</h2>
-      <div class="auth-terms">${esc(t.body || '')}</div>
-      <label class="auth-check"><input type="checkbox" id="auth-acc"> Li e aceito os Termos de Uso e a Política de Privacidade.</label>
-      <button id="auth-aceitar" class="btn btn-primary auth-go" disabled>Aceitar e continuar</button>
-      <div class="auth-links"><a id="auth-sair">Sair</a></div>
-    </div>`;
+  const inner = `
+    <div class="auth-terms">${esc(t.body || '')}</div>
+    <label class="auth-check"><input type="checkbox" id="auth-acc"> Li e aceito os Termos de Uso e a Política de Privacidade.</label>
+    <button id="auth-aceitar" class="auth-btn" disabled>Aceitar e continuar</button>
+    <div class="auth-links"><a id="auth-sair">Sair</a></div>`;
+  el.innerHTML = authShell('Termos de Uso & Privacidade', '', inner, true);
   const chk = el.querySelector('#auth-acc'), btn = el.querySelector('#auth-aceitar');
   chk.onchange = () => { btn.disabled = !chk.checked; };
   el.querySelector('#auth-sair').onclick = async () => { await cloud.signOut(); };
@@ -383,7 +420,10 @@ async function startAuthBoot() {
   if (!cloud.cloudEnabled()) {            // sem Supabase → modo local (sem login)
     _appReady = true; store.aplicarPeriodoVigente(); if (!location.hash) location.hash = '#inicio'; buildNav(); renderView(); return;
   }
-  cloud.onAuthChange((event, session) => { if (session) bootApp(); else { _appReady = false; _bootedUid = null; renderLogin(); } });
+  cloud.onAuthChange((event, session) => {
+    if (event === 'PASSWORD_RECOVERY') { _appReady = false; _bootedUid = null; renderNovaSenha(); return; }   // clicou no link de reset
+    if (session) bootApp(); else { _appReady = false; _bootedUid = null; renderLogin(); }
+  });
 }
 
 applyTema();
