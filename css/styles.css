@@ -634,5 +634,8 @@ tr.row-neg > td:first-child { box-shadow: inset 3px 0 0 var(--red); }
 .gc-pager { display: flex; align-items: center; justify-content: center; gap: 12px; margin-top: 12px; font-size: 13px; color: var(--muted); }
 .gc-pager button { background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; width: 32px; height: 30px; cursor: pointer; font-size: 16px; color: var(--text); }
 .gc-pager button:disabled { opacity: .4; cursor: default; }
+.sub-sec { padding: 14px 0; border-bottom: 1px solid var(--line); }
+.sub-sec:last-child { border-bottom: 0; padding-bottom: 2px; }
+.sub-sec .ig-sub { margin-bottom: 9px; }
 .cfg-field select, .cfg-field input { font: inherit; }
 .nav-admin { margin-top: 4px; }
