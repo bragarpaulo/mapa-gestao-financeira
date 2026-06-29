@@ -43,6 +43,12 @@ async function uidPorEmail(email: string): Promise<string | null> {
   const r = await rest('rpc/uid_por_email', { method: 'POST', body: JSON.stringify({ p_email: email }) });
   return (typeof r.data === 'string' && r.data) ? r.data : null;
 }
+// Acha pelo e-mail DA COMPRA (âncora do vínculo) — funciona mesmo se o login interno mudou depois.
+async function uidPorCompra(email: string): Promise<string | null> {
+  const r = await rest(`profiles?purchase_email=eq.${encodeURIComponent(email)}&select=id&limit=1`);
+  return (Array.isArray(r.data) && r.data[0] && r.data[0].id) || null;
+}
+async function achaUsuario(email: string): Promise<string | null> { return (await uidPorCompra(email)) || (await uidPorEmail(email)); }
 async function criarUsuario(email: string, senha: string): Promise<string | null> {
   const r = await fetch(`${URL}/auth/v1/admin/users`, { method: 'POST', headers: H, body: JSON.stringify({ email, password: senha, email_confirm: true }) });
   const j = await r.json().catch(() => ({}));
@@ -114,17 +120,19 @@ Deno.serve(async (req: Request) => {
 
   if (ev.pago) {
     const senha = tempPassword(); let novo = false;
-    let userId = await uidPorEmail(ev.email);
+    let userId = await achaUsuario(ev.email);
     if (!userId) { userId = await criarUsuario(ev.email, senha); novo = !!userId; }
-    if (!userId) userId = await uidPorEmail(ev.email);   // corrida
+    if (!userId) userId = await achaUsuario(ev.email);   // corrida
     if (!userId) return new Response('falha ao provisionar', { status: 200 });
+    // grava o vínculo da compra (âncora — mesmo que o login mude depois) + nicho
+    const patch: any = { purchase_email: ev.email }; if (niche) patch.niche = niche;
+    await rest(`profiles?id=eq.${userId}`, { method: 'PATCH', body: JSON.stringify(patch) });
     await rest('subscriptions', { method: 'POST', headers: { Prefer: 'resolution=merge-duplicates' }, body: JSON.stringify({ owner_id: userId, plan_code: planCode, status: 'active', gateway: 'green', gateway_sub_id: ev.subId, updated_at: new Date().toISOString() }) });
-    if (niche) await rest(`profiles?id=eq.${userId}`, { method: 'PATCH', body: JSON.stringify({ niche }) });
     await enviarEmail(ev.email, ev.nome, senha, novo);
     return new Response('ativado', { status: 200 });
   }
   if (ev.cancelado) {
-    const userId = await uidPorEmail(ev.email);
+    const userId = await achaUsuario(ev.email);
     if (userId) await rest(`subscriptions?owner_id=eq.${userId}`, { method: 'PATCH', body: JSON.stringify({ status: 'canceled', updated_at: new Date().toISOString() }) });
     return new Response('cancelado', { status: 200 });
   }
