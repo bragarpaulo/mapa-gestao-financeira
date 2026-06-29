@@ -17,34 +17,67 @@ export function render(container) {
       <div class="card card-pad" id="gc-templates"><strong>Templates de nicho</strong></div>
     </div>
     <div class="card card-pad" id="gc-integr" style="margin-top:14px"><strong>Integrações</strong></div>
+    <div class="card card-pad" id="gc-wa" style="margin-top:14px"><strong>IA no WhatsApp</strong></div>
     <div class="card card-pad" id="gc-config" style="margin-top:14px"><strong>Configurações</strong></div>`;
-  loadMetrics(container); loadUsers(container); loadPlans(container); loadTemplates(container); loadIntegracoes(container); loadConfig(container);
+  loadMetrics(container); loadUsers(container); loadPlans(container); loadTemplates(container); loadIntegracoes(container); loadWaNumbers(container); loadConfig(container);
 }
 
 async function loadIntegracoes(c) {
   const cfg = await cloud.adminGetIntegrations();
-  const url = 'https://qdioqeejcneijctotyft.supabase.co/functions/v1/green-webhook';
-  c.querySelector('#gc-integr').innerHTML = `<strong>Integrações (Green + Resend)</strong>
-    <p class="hint" style="margin:6px 0 12px">Plugue as chaves aqui — o webhook de cobrança usa direto. Guardadas só para o admin.</p>
-    <label class="cfg-field">URL do webhook (cadastre na Green)
-      <span style="display:flex;gap:6px"><input id="ig-url" value="${esc(url)}" readonly style="flex:1"><button class="btn btn-sm" id="ig-copy">Copiar</button></span></label>
+  const base = 'https://qdioqeejcneijctotyft.supabase.co/functions/v1/';
+  const urlGreen = base + 'green-webhook', urlWa = base + 'whatsapp-webhook';
+  const copia = (id, url) => `<span style="display:flex;gap:6px"><input value="${esc(url)}" readonly style="flex:1"><button class="btn btn-sm" data-copy="${esc(url)}" id="${id}">Copiar</button></span>`;
+  c.querySelector('#gc-integr').innerHTML = `<strong>Integrações</strong>
+    <p class="hint" style="margin:6px 0 12px">Plugue as chaves aqui — os webhooks usam direto. Guardadas só para o admin.</p>
+    <div class="ig-sub">Cobrança (Green) + E-mail (Resend)</div>
+    <label class="cfg-field">URL do webhook da Green ${copia('cp-green', urlGreen)}</label>
     <div class="grid grid-2" style="margin-top:10px">
       <label class="cfg-field">Resend — API key <input id="ig-resend" type="password" value="${esc(cfg.resend_api_key || '')}" placeholder="re_..."></label>
       <label class="cfg-field">Remetente (FROM_EMAIL) <input id="ig-from" value="${esc(cfg.from_email || '')}" placeholder="GPR <nao-responda@seudominio>"></label>
       <label class="cfg-field">URL do app (APP_URL) <input id="ig-app" value="${esc(cfg.app_url || '')}" placeholder="https://bragarpaulo.github.io/mapa-gestao-financeira/"></label>
       <label class="cfg-field">Green — segredo do webhook <input id="ig-green" type="password" value="${esc(cfg.green_webhook_secret || '')}" placeholder="segredo da Green"></label>
     </div>
-    <button class="btn btn-sm btn-primary" id="ig-save" style="margin-top:12px">Salvar integrações</button>
-    <p class="hint" style="margin-top:10px">💡 A Resend também resolve o e-mail de <b>reset de senha</b> (configure o SMTP do Resend em Authentication). Ligue cada oferta da Green a um plano em <b>Planos</b> → campo "Oferta Green".</p>`;
-  c.querySelector('#ig-copy').onclick = () => { try { navigator.clipboard.writeText(url); } catch (e) {} const b = c.querySelector('#ig-copy'); b.textContent = 'Copiado ✓'; setTimeout(() => b.textContent = 'Copiar', 1300); };
+    <div class="ig-sub" style="margin-top:16px">IA no WhatsApp</div>
+    <label class="cfg-field">URL do webhook do WhatsApp (Meta) ${copia('cp-wa', urlWa)}</label>
+    <div class="grid grid-2" style="margin-top:10px">
+      <label class="cfg-field">Anthropic — API key <input id="ig-anthropic" type="password" value="${esc(cfg.anthropic_api_key || '')}" placeholder="sk-ant-..."></label>
+      <label class="cfg-field">Modelo de IA <input id="ig-model" value="${esc(cfg.ai_model || '')}" placeholder="claude-sonnet-4-6"></label>
+      <label class="cfg-field">WhatsApp — token (Meta) <input id="ig-watoken" type="password" value="${esc(cfg.wa_token || '')}" placeholder="EAAG..."></label>
+      <label class="cfg-field">WhatsApp — Phone Number ID <input id="ig-waphone" value="${esc(cfg.wa_phone_id || '')}" placeholder="1234567890"></label>
+      <label class="cfg-field">WhatsApp — Verify Token <input id="ig-waverify" value="${esc(cfg.wa_verify_token || '')}" placeholder="defina um texto qualquer"></label>
+    </div>
+    <button class="btn btn-sm btn-primary" id="ig-save" style="margin-top:14px">Salvar integrações</button>
+    <p class="hint" style="margin-top:10px">💡 Resend também resolve o e-mail de <b>reset</b> (configure o SMTP do Resend em Authentication). Na Green, ligue cada oferta a um plano em <b>Planos</b>. No WhatsApp, autorize os números abaixo.</p>`;
+  c.querySelectorAll('[data-copy]').forEach(b => b.onclick = () => { try { navigator.clipboard.writeText(b.dataset.copy); } catch (e) {} const t = b.textContent; b.textContent = 'Copiado ✓'; setTimeout(() => b.textContent = t, 1300); });
   c.querySelector('#ig-save').onclick = async () => {
+    const v = (id) => c.querySelector(id).value.trim();
     const ok = await cloud.adminSetIntegrations({
-      resend_api_key: c.querySelector('#ig-resend').value.trim(),
-      from_email: c.querySelector('#ig-from').value.trim(),
-      app_url: c.querySelector('#ig-app').value.trim(),
-      green_webhook_secret: c.querySelector('#ig-green').value.trim(),
+      resend_api_key: v('#ig-resend'), from_email: v('#ig-from'), app_url: v('#ig-app'), green_webhook_secret: v('#ig-green'),
+      anthropic_api_key: v('#ig-anthropic'), ai_model: v('#ig-model'), wa_token: v('#ig-watoken'), wa_phone_id: v('#ig-waphone'), wa_verify_token: v('#ig-waverify'),
     });
     flash(c.querySelector('#ig-save'), ok);
+  };
+}
+
+async function loadWaNumbers(c) {
+  const [nums, users, uso] = [await cloud.adminListWaNumbers(), await cloud.adminListUsers(), await cloud.adminAiUsage()];
+  const userOpts = users.map(u => `<option value="${u.id}">${esc(u.email || u.id)}</option>`).join('');
+  const emailDe = (id) => { const u = users.find(x => x.id === id); return u ? (u.email || id) : id; };
+  const rows = nums.map(n => `<tr><td>${esc(n.phone)}</td><td>${esc(emailDe(n.owner_id))}</td><td><button class="btn btn-sm" data-delwa="${esc(n.phone)}">Remover</button></td></tr>`).join('') || '<tr><td colspan="3" class="empty">Nenhum número autorizado.</td></tr>';
+  c.querySelector('#gc-wa').innerHTML = `<strong>IA no WhatsApp — números autorizados</strong>
+    <span class="hint"> · uso: ${uso.i + uso.o} tokens</span>
+    <div class="table-wrap" style="box-shadow:none;margin-top:8px"><table>
+      <thead><tr><th>Número (com DDI)</th><th>Usuário</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>
+    <div class="toolbar" style="margin-top:8px;gap:6px">
+      <input id="wa-new-phone" placeholder="5531999998888" style="width:160px">
+      <select id="wa-new-user">${userOpts}</select>
+      <button class="btn btn-sm" id="wa-add">+ Autorizar</button></div>`;
+  c.querySelectorAll('[data-delwa]').forEach(b => b.onclick = async () => { await cloud.adminDelWaNumber(b.dataset.delwa); loadWaNumbers(c); });
+  const add = c.querySelector('#wa-add');
+  if (add) add.onclick = async () => {
+    const phone = (c.querySelector('#wa-new-phone').value || '').replace(/\D/g, ''); const ownerId = c.querySelector('#wa-new-user').value;
+    if (!phone || !ownerId) { alert('Informe número e usuário.'); return; }
+    if (await cloud.adminAddWaNumber(phone, ownerId)) loadWaNumbers(c);
   };
 }
 
