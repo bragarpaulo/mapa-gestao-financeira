@@ -48,16 +48,18 @@ async function loadPlans(c) {
   const plans = await cloud.adminListPlans();
   const rows = plans.map(p => `<tr data-code="${esc(p.code)}">
     <td><strong>${esc(p.code)}</strong></td>
-    <td><input class="pl-nome" value="${esc(p.name)}" style="min-width:150px"></td>
-    <td><input class="pl-max" type="number" value="${p.max_companies}" style="width:56px"></td>
-    <td><input class="pl-preco" type="number" step="0.01" value="${(p.price_cents || 0) / 100}" style="width:88px"></td>
+    <td><input class="pl-nome" value="${esc(p.name)}" style="min-width:130px"></td>
+    <td><input class="pl-max" type="number" value="${p.max_companies}" style="width:52px"></td>
+    <td><input class="pl-preco" type="number" step="0.01" value="${(p.price_cents || 0) / 100}" style="width:78px"></td>
+    <td><input class="pl-oferta" value="${esc(p.green_offer_id || '')}" placeholder="id da oferta" style="width:110px"></td>
+    <td><input class="pl-niche" value="${esc(p.niche || '')}" placeholder="nicho" style="width:90px"></td>
     <td><button class="btn btn-sm btn-primary" data-savep="${esc(p.code)}">Salvar</button></td></tr>`).join('');
-  c.querySelector('#gc-plans').innerHTML = `<strong>Planos</strong>
+  c.querySelector('#gc-plans').innerHTML = `<strong>Planos</strong> <span class="hint">— "Oferta Green" liga a compra ao plano</span>
     <div class="table-wrap" style="box-shadow:none;margin-top:8px"><table>
-      <thead><tr><th>Cód</th><th>Nome</th><th>Empresas</th><th>R$/mês</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`;
+      <thead><tr><th>Cód</th><th>Nome</th><th>Empr.</th><th>R$/mês</th><th>Oferta Green</th><th>Nicho</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`;
   c.querySelectorAll('[data-savep]').forEach(b => b.onclick = async () => {
     const tr = b.closest('tr');
-    const ok = await cloud.adminUpsertPlan({ code: b.dataset.savep, name: tr.querySelector('.pl-nome').value, max_companies: Number(tr.querySelector('.pl-max').value) || 1, price_cents: Math.round(Number(tr.querySelector('.pl-preco').value) * 100) || 0 });
+    const ok = await cloud.adminUpsertPlan({ code: b.dataset.savep, name: tr.querySelector('.pl-nome').value, max_companies: Number(tr.querySelector('.pl-max').value) || 1, price_cents: Math.round(Number(tr.querySelector('.pl-preco').value) * 100) || 0, green_offer_id: tr.querySelector('.pl-oferta').value.trim() || null, niche: tr.querySelector('.pl-niche').value.trim() || null });
     flash(b, ok);
   });
 }
