@@ -27,9 +27,11 @@ import * as planxreal from './views/planxreal.js';
 import * as metaxreal from './views/metaxreal.js';
 import * as metas from './views/metas.js';
 import * as admin from './views/admin.js';
+import * as equipe from './views/equipe.js';
 
-const VIEWS = { inicio, dashboard, cadastro, vendas, despesas, dre, dfc, fluxo, orcamento, planxreal, metaxreal, metas, admin };
+const VIEWS = { inicio, dashboard, cadastro, vendas, despesas, dre, dfc, fluxo, orcamento, planxreal, metaxreal, metas, admin, equipe };
 const ADMIN_ICO = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 4v5c0 4.4-3.1 7.6-8 9-4.9-1.4-8-4.6-8-9V7l8-4z"/><path d="M9 12l2 2 4-4"/></svg>`;
+const EQUIPE_ICO = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`;
 
 const navEl = document.getElementById('nav');
 const contentEl = document.getElementById('content');
@@ -187,6 +189,7 @@ periodBarEl.addEventListener('click', (e) => {
 
 function buildNav() {
   let html = ABAS.map(a => `<a class="nav-item" data-route="${a.id}" href="#${a.id}"><span class="nav-ico">${a.icone}</span>${esc(a.nome)}</a>`).join('');
+  if (_isOwner) html += `<a class="nav-item" data-route="equipe" href="#equipe"><span class="nav-ico">${EQUIPE_ICO}</span>Equipe & WhatsApp</a>`;
   if (_isAdmin) html += `<a class="nav-item nav-admin" data-route="admin" href="#admin"><span class="nav-ico">${ADMIN_ICO}</span>GPR Core</a>`;
   navEl.innerHTML = html;
 }
@@ -313,7 +316,7 @@ document.addEventListener('click', (e) => {
 });
 
 // ===== Autenticação: gate de login + termos (multi-inquilino) =====
-let _appReady = false, _bootedUid = null, _isAdmin = false;
+let _appReady = false, _bootedUid = null, _isAdmin = false, _isOwner = false;
 function authGateEl() { let el = document.getElementById('auth-gate'); if (!el) { el = document.createElement('div'); el.id = 'auth-gate'; document.body.appendChild(el); } return el; }
 function hideAuthGate() { const el = document.getElementById('auth-gate'); if (el) el.remove(); }
 function traduzErroAuth(m) {
@@ -423,6 +426,7 @@ async function bootApp() {
   _bootedUid = u.id; _appReady = true;
   const acc = await cloud.getMyAccess();        // admin? assinante? demo (não comprou)?
   _isAdmin = acc.admin;
+  _isOwner = !acc.admin && !acc.demo && !acc.readOnly && ((await cloud.getMeuDono()) === u.id);   // dono ativo (não membro)
   hideAuthGate();
   if (!location.hash) location.hash = '#inicio';
   buildNav();
