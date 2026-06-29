@@ -78,3 +78,29 @@ export async function acceptTerms(version) {
     return !error;
   } catch (e) { return false; }
 }
+export async function isAdminUser() { const p = await getProfile(); return !!(p && p.is_admin); }
+
+// ---- GPR Core (admin) — RLS garante que só admin lê/escreve ------------------
+export async function adminMetrics() {
+  try {
+    const c = client(); if (!c) return { usuarios: 0, assinantes: 0, empresas: 0 };
+    const u = await c.from('profiles').select('id', { count: 'exact', head: true });
+    const s = await c.from('subscriptions').select('owner_id', { count: 'exact', head: true }).in('status', ['active', 'trialing']);
+    const d = await c.from('user_data').select('owner_id', { count: 'exact', head: true });
+    return { usuarios: u.count || 0, assinantes: s.count || 0, empresas: d.count || 0 };
+  } catch (e) { return { usuarios: 0, assinantes: 0, empresas: 0 }; }
+}
+export async function adminListUsers() {
+  const c = client(); if (!c) return [];
+  const { data: profs } = await c.from('profiles').select('id,email,is_admin,niche,created_at').order('created_at');
+  const { data: subs } = await c.from('subscriptions').select('owner_id,plan_code,status,current_period_end');
+  const m = {}; (subs || []).forEach(s => m[s.owner_id] = s);
+  return (profs || []).map(p => ({ ...p, sub: m[p.id] || null }));
+}
+export async function adminListPlans() { const c = client(); const { data } = await c.from('plans').select('*').order('code'); return data || []; }
+export async function adminUpsertPlan(plan) { const c = client(); const { error } = await c.from('plans').upsert(plan); return !error ? true : (console.warn('[admin] plano', error.message), false); }
+export async function adminListTemplates() { const c = client(); const { data } = await c.from('templates').select('*').order('id'); return data || []; }
+export async function adminUpsertTemplate(t) { const c = client(); const { error } = await c.from('templates').upsert(t); return !error ? true : (console.warn('[admin] template', error.message), false); }
+export async function adminGetConfig() { const c = client(); const { data } = await c.from('app_config').select('value').eq('key', 'geral').maybeSingle(); return (data && data.value) || {}; }
+export async function adminSetConfig(value) { const c = client(); const { error } = await c.from('app_config').upsert({ key: 'geral', value, updated_at: new Date().toISOString() }); return !error; }
+export async function adminSetSubscription(ownerId, planCode, status) { const c = client(); const { error } = await c.from('subscriptions').upsert({ owner_id: ownerId, plan_code: planCode || null, status, updated_at: new Date().toISOString() }); return !error ? true : (console.warn('[admin] sub', error.message), false); }

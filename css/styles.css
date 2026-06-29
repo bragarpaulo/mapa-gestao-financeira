@@ -593,3 +593,11 @@ tr.row-neg > td:first-child { box-shadow: inset 3px 0 0 var(--red); }
 .auth-check { display: flex; align-items: flex-start; gap: 9px; font-size: 13px; color: var(--text); margin-top: 4px; }
 .auth-check input { margin-top: 2px; }
 [data-theme="dark"] #auth-gate { background: radial-gradient(1100px 560px at 50% -12%, rgba(29,78,216,.2), transparent 60%), var(--bg); }
+
+/* Banner não-bloqueante (oferta de importar dados deste navegador) */
+.legado-banner { position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); z-index: 1100; background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow-lg); border-radius: 12px; padding: 11px 16px; display: flex; align-items: center; gap: 10px; font-size: 13.5px; max-width: 92vw; animation: gpr-fade .2s ease both; }
+
+/* GPR Core (admin) */
+.cfg-field { display: flex; flex-direction: column; gap: 5px; font-size: 13px; font-weight: 600; color: var(--text); }
+.cfg-field select, .cfg-field input { font: inherit; }
+.nav-admin { margin-top: 4px; }

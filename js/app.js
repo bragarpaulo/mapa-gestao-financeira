@@ -26,8 +26,10 @@ import * as orcamento from './views/orcamento.js';
 import * as planxreal from './views/planxreal.js';
 import * as metaxreal from './views/metaxreal.js';
 import * as metas from './views/metas.js';
+import * as admin from './views/admin.js';
 
-const VIEWS = { inicio, dashboard, cadastro, vendas, despesas, dre, dfc, fluxo, orcamento, planxreal, metaxreal, metas };
+const VIEWS = { inicio, dashboard, cadastro, vendas, despesas, dre, dfc, fluxo, orcamento, planxreal, metaxreal, metas, admin };
+const ADMIN_ICO = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 4v5c0 4.4-3.1 7.6-8 9-4.9-1.4-8-4.6-8-9V7l8-4z"/><path d="M9 12l2 2 4-4"/></svg>`;
 
 const navEl = document.getElementById('nav');
 const contentEl = document.getElementById('content');
@@ -184,7 +186,9 @@ periodBarEl.addEventListener('click', (e) => {
 // (Config da empresa abre direto a aba Cadastro — sem modal.)
 
 function buildNav() {
-  navEl.innerHTML = ABAS.map(a => `<a class="nav-item" data-route="${a.id}" href="#${a.id}"><span class="nav-ico">${a.icone}</span>${esc(a.nome)}</a>`).join('');
+  let html = ABAS.map(a => `<a class="nav-item" data-route="${a.id}" href="#${a.id}"><span class="nav-ico">${a.icone}</span>${esc(a.nome)}</a>`).join('');
+  if (_isAdmin) html += `<a class="nav-item nav-admin" data-route="admin" href="#admin"><span class="nav-ico">${ADMIN_ICO}</span>GPR Core</a>`;
+  navEl.innerHTML = html;
 }
 function currentRoute() {
   const h = (location.hash || '').replace('#', '');
@@ -299,7 +303,7 @@ document.addEventListener('click', (e) => {
 });
 
 // ===== Autenticação: gate de login + termos (multi-inquilino) =====
-let _appReady = false, _bootedUid = null;
+let _appReady = false, _bootedUid = null, _isAdmin = false;
 function authGateEl() { let el = document.getElementById('auth-gate'); if (!el) { el = document.createElement('div'); el.id = 'auth-gate'; document.body.appendChild(el); } return el; }
 function hideAuthGate() { const el = document.getElementById('auth-gate'); if (el) el.remove(); }
 function traduzErroAuth(m) {
@@ -405,16 +409,30 @@ async function bootApp() {
   const t = await cloud.termsStatus();
   if (t.version && !t.accepted) { renderTermos(t); return; }
   _bootedUid = u.id; _appReady = true;
+  _isAdmin = await cloud.isAdminUser();        // mostra "GPR Core" no menu p/ admin
   hideAuthGate();
   if (!location.hash) location.hash = '#inicio';
   buildNav();
   await initCloud();                      // carrega os dados DO usuário (user_data)
-  // Migração 1x: conta vazia + dados antigos NESTE navegador → oferece importar para a conta
-  if (store.contaVazia() && store.temDadosLegados()) {
-    if (confirm('Encontramos dados financeiros guardados neste navegador (de antes do login). Deseja importá-los para a sua conta?')) store.importarLegado();
-  }
   store.aplicarPeriodoVigente();
   renderView();
+  maybeOfferLegado(u.id);                  // banner não-bloqueante (1× por usuário)
+}
+// Oferece importar dados deste navegador (de antes do login) — sem travar o boot, 1× por usuário.
+function maybeOfferLegado(uid) {
+  try {
+    const key = 'gpr_legado_visto_' + uid;
+    if (localStorage.getItem(key)) return;
+    if (!(store.contaVazia() && store.temDadosLegados())) return;
+    localStorage.setItem(key, '1');
+    document.getElementById('legado-banner')?.remove();
+    const b = document.createElement('div');
+    b.id = 'legado-banner'; b.className = 'legado-banner';
+    b.innerHTML = `📦 Encontramos dados financeiros guardados neste navegador (de antes do login). <button class="btn btn-sm btn-primary" id="leg-imp">Importar para minha conta</button> <button class="btn btn-sm" id="leg-no">Agora não</button>`;
+    document.body.appendChild(b);
+    b.querySelector('#leg-imp').onclick = () => { store.importarLegado(); b.remove(); renderView(); };
+    b.querySelector('#leg-no').onclick = () => b.remove();
+  } catch (e) {}
 }
 async function startAuthBoot() {
   if (!cloud.cloudEnabled()) {            // sem Supabase → modo local (sem login)
