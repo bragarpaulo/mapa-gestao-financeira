@@ -1,6 +1,7 @@
 // ui.js — helpers de UI compartilhados pelas views (HTML em string + componentes).
 import { MESES, STATUS_VENDA, STATUS_DESPESA, PERIODOS_RECORRENCIA } from './config.js';
 import { esc, fmtBRL, fmtBRL0, fmtPct, num, norm } from './util.js';
+import { ensureExportLibs } from './lazylibs.js';
 
 const _moneyFmt = new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 export function fmtMoneyInput(v) { return 'R$ ' + _moneyFmt.format(num(v)); }
@@ -398,6 +399,7 @@ export function wireExport(container, filename = 'gpr', opts = {}) {
     if (tipo === 'csv') { tabelaParaCsv(container, filename); return; }
     const txt = b.textContent; b.textContent = '...'; b.disabled = true;
     try {
+      await ensureExportLibs();   // carrega html2canvas + jspdf + autotable sob demanda (não estão no boot)
       if (tipo === 'png') await exportarPng(container, filename);
       else if (tipo === 'pdf') { if (opts.modo === 'tabela') exportTabelaPdf(container, filename); else await exportarPdf(container, filename, opts); }
     }

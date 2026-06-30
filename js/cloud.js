@@ -99,12 +99,12 @@ export async function updateProfile(patch) {
 // Acesso do usuário:
 //   admin → tudo. assinatura ATIVA → edita (limite do plano). assinatura CANCELADA → seus dados, só-leitura.
 //   SEM assinatura (nunca comprou) → modo DEMO (vê dados de exemplo, só-leitura; ao comprar com o mesmo e-mail vira completo).
-export async function getMyAccess() {
+export async function getMyAccess(prof = null) {
   const demo = { admin: false, demo: true, readOnly: true, planLimit: 0, seatLimit: 0, status: 'none', plan: null };
   try {
     const c = client(); if (!c) return demo;
     const u = await currentUser(); if (!u) return demo;
-    const prof = await getProfile();
+    if (!prof) prof = await getProfile();   // reusa o profile já buscado no boot (evita 1 round-trip)
     if (prof && prof.is_admin) return { admin: true, demo: false, readOnly: false, planLimit: Infinity, seatLimit: Infinity, status: 'active', plan: null };
     const ownerId = (await getMeuDono()) || u.id;   // membro herda a assinatura do DONO da conta
     const { data: sub } = await c.from('subscriptions').select('plan_code,status').eq('owner_id', ownerId).maybeSingle();

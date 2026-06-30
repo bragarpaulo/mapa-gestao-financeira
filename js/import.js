@@ -4,6 +4,7 @@
 import { update, uid, addEmpresaVazia } from './store.js';
 import { FORMAS_PAGAMENTO, MESES, GRUPOS } from './config.js';
 import { num } from './util.js';
+import { ensureXlsx } from './lazylibs.js';
 
 const MES_COL = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
 
@@ -54,7 +55,8 @@ function vAl(row, km, ...names) { for (const n of names) { const k = km[norm(n)]
 // Com raw:false os valores viriam como texto "5208.8" e o num() (pt-BR) trataria o ponto como milhar.
 const rowsDe = (wb, re, exclude) => { const nome = wb.SheetNames.find(n => re.test(norm(n)) && !(exclude && exclude.test(norm(n)))); return nome ? XLSX.utils.sheet_to_json(wb.Sheets[nome], { defval: '', raw: true }) : []; };
 
-export function importarArquivo(file, cb) {
+export async function importarArquivo(file, cb) {
+  try { await ensureXlsx(); } catch (e) {}
   if (!libOk()) { alert('Biblioteca de planilha não carregou (sem internet?).'); return; }
   const reader = new FileReader();
   reader.onload = (e) => {

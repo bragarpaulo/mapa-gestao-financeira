@@ -419,12 +419,12 @@ async function bootApp() {
   if (!u) { renderLogin(); return; }
   if (_appReady && _bootedUid === u.id) return;
   setUserScope(u.id);
-  const t = await cloud.termsStatus();
+  // termos + perfil em paralelo (ambos só dependem da sessão local) — corta 1 round-trip no boot.
+  const [t, prof] = await Promise.all([cloud.termsStatus(), cloud.getProfile()]);
   if (t.version && !t.accepted) { renderTermos(t); return; }
-  const prof = await cloud.getProfile();
   if (!prof || !prof.full_name) { renderPerfil(prof || {}); return; }   // onboarding: nome/setor/instagram
   _bootedUid = u.id; _appReady = true;
-  const acc = await cloud.getMyAccess();        // admin? assinante? demo (não comprou)?
+  const acc = await cloud.getMyAccess(prof);    // reusa o prof já buscado (admin? assinante? demo?)
   _isAdmin = acc.admin;
   _isOwner = !acc.admin && !acc.demo && !acc.readOnly && ((await cloud.getMeuDono()) === u.id);   // dono ativo (não membro)
   hideAuthGate();
