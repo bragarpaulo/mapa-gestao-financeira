@@ -55,8 +55,8 @@ export function kpisCaixaProvisoes(d) {
     <div class="section-title">Provisões</div>
     <div class="grid kpis">
       ${kpi2('🔮 Saldo Provisionado', [['Mês atual', fmtBRL0(d.saldoProvMes)], ['Próximos meses', fmtBRL0(d.saldoProvProx)]], { variant: 'k-purple', route: 'fluxo' })}
-      ${kpi2('📥 Contas a Receber', [['Mês atual', fmtBRL0(d.contasReceberMes)], ['Próximos meses', fmtBRL0(d.contasReceberProx)]], { variant: 'k-blue', route: 'fluxo' })}
-      ${kpi2('📤 Contas a Pagar', [['Mês atual', fmtBRL0(d.contasPagarMes)], ['Total', fmtBRL0(d.contasPagarTotal)]], { variant: 'k-red', route: 'fluxo' })}
+      ${kpi2('📥 Contas a Receber', [['Vencidas + mês', fmtBRL0(d.contasReceberMes)], ['Próximos meses', fmtBRL0(d.contasReceberProx)]], { variant: 'k-blue', route: 'fluxo' })}
+      ${kpi2('📤 Contas a Pagar', [['Vencidas + mês', fmtBRL0(d.contasPagarMes)], ['Total', fmtBRL0(d.contasPagarTotal)]], { variant: 'k-red', route: 'fluxo' })}
       ${kpi('⚠️ Inadimplência', fmtBRL0(d.inadimplencia), { variant: 'k-orange', cls: d.inadimplencia > 0 ? 'red' : '', route: 'vendas' })}
     </div>`;
 }

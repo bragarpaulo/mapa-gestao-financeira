@@ -292,12 +292,15 @@ export function calcDashboard(s) {
   const geracaoCaixa = recebimentos - pagamentos;
   const saldoAtual = fluxo.saldoConta[idxRef];
 
-  // Visão de Caixa (forward-looking, baseado no mês corrente)
-  const idxAtual = Math.min(new Date().getMonth(), 11);
+  // Visão de Caixa. "A receber/A pagar" inclui o que está VENCIDO e ainda não foi recebido/pago
+  // (atrasado), pois continua sendo um valor em aberto. Referência por ano: ano passado → tudo já
+  // venceu; ano futuro → nada venceu; ano corrente → até o mês atual.
+  const curY = new Date().getFullYear();
+  const idxAtual = ano < curY ? 11 : ano > curY ? 0 : Math.min(new Date().getMonth(), 11);
   const somaDe = (arr, from, to) => arr.slice(from, to).reduce((a, b) => a + b, 0);
-  const contasReceberMes = fluxo.entradasPrev[idxAtual];
-  const contasReceberProx = somaDe(fluxo.entradasPrev, idxAtual + 1, 12);
-  const contasPagarMes = fluxo.saidasPrev[idxAtual];
+  const contasReceberMes = somaDe(fluxo.entradasPrev, 0, idxAtual + 1);    // vencidas (atrasadas) + a vencer no mês
+  const contasReceberProx = somaDe(fluxo.entradasPrev, idxAtual + 1, 12);  // a vencer nos próximos meses
+  const contasPagarMes = somaDe(fluxo.saidasPrev, 0, idxAtual + 1);        // vencidas + a vencer no mês
   const contasPagarTotal = somaDe(fluxo.saidasPrev, 0, 12);
   const contasPagarProx = contasPagarTotal - contasPagarMes;
   // Saldo Provisionado: Saldo atual +/- previstos (mês atual e próximos).
