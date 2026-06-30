@@ -1,7 +1,7 @@
 // Verificação do motor de cálculo contra invariantes da planilha.
 // Roda: node test/verify.mjs   (a partir da pasta do projeto)
 import { demoData } from '../js/seed.js';
-import { DEFAULT_CATEGORIES, DEFAULT_RECEITA_CATEGORIES, STATUS_VENDA } from '../js/config.js';
+import { DEFAULT_CATEGORIES, DEFAULT_RECEITA_CATEGORIES, STATUS_VENDA, ABAS } from '../js/config.js';
 import {
   calcDRE, calcDFC, calcFluxo, calcDashboard, calcMetaxReal, calcPlanxReal, vendasDerivadas, despesasDerivadas, calcSeriesMultiAno, calcVendasPorChave,
 } from '../js/calc.js';
@@ -170,6 +170,17 @@ check('calcVendasPorChave produto: soma = entradas DRE (ano)', approx(sum(porPro
 check('calcVendasPorChave: produto e cliente somam o mesmo total', approx(sum(porProd.map(x => x.valor)), sum(porCli.map(x => x.valor))));
 check('calcVendasPorChave: ordenado desc por valor', porProd.every((x, i) => i === 0 || porProd[i - 1].valor >= x.valor));
 check('calcVendasPorChave: pct soma ~1', porProd.length === 0 || approx(sum(porProd.map(x => x.pct)), 1, 0.01));
+
+console.log('\n== MENU: ORDEM E NOMES DAS ABAS ==');
+const ORDEM_MENU = [
+  ['inicio', 'Início'], ['dashboard', 'Dashboard'], ['vendas', 'Lançamento de Vendas'], ['despesas', 'Lançamento de Despesas'],
+  ['dre', 'DRE (Anual)'], ['dfc', 'DFC (Anual)'], ['fluxo', 'Fluxo de Caixa'],
+  ['metas', 'Controle de Metas'], ['metaxreal', 'Meta de Receita × Realizado'], ['planxreal', 'Orçado × Realizado'],
+  ['orcamento', 'Orçamento de Despesas'], ['cadastro', 'Configurações'],
+];
+check('Menu: ordem dos ids inalterada', ABAS.map(a => a.id).join(',') === ORDEM_MENU.map(x => x[0]).join(','), `(${ABAS.map(a => a.id).join(',')})`);
+check('Menu: nomes inalterados', ABAS.map(a => a.nome).join('|') === ORDEM_MENU.map(x => x[1]).join('|'));
+check('Menu: Cadastro renomeado para Configurações', ABAS.find(a => a.id === 'cadastro')?.nome === 'Configurações');
 
 console.log(`\n== RESULTADO: ${pass} passou, ${fail} falhou ==`);
 process.exit(fail ? 1 : 0);
