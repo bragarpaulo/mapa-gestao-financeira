@@ -173,8 +173,8 @@ export async function adminSetUserPassword(userId, password) { return callAdmin(
 export async function adminGenPassword(userId) { return callAdmin('gen_password', { user_id: userId }); }
 export async function adminCreateAdmin(email, password) { return callAdmin('create_admin', { email, password }); }
 // Cria um ASSINANTE e, opcionalmente, já vincula um plano + status (ex.: grátis com status 'active' = acesso total).
-export async function adminCreateSubscriber(email, password, nome, planCode, status) {
-  const r = await callAdmin('create_user', { email, password, nome });
+export async function adminCreateSubscriber(email, password, nome, planCode, status, extras = {}) {
+  const r = await callAdmin('create_user', { email, password, nome, setor: extras.setor, instagram: extras.instagram, niche: extras.niche });
   if (!r || !r.ok) return r || { ok: false, error: 'falhou' };
   if (planCode || status) {
     const okSub = await adminSetSubscription(r.id, planCode || null, status || 'active');
@@ -182,6 +182,8 @@ export async function adminCreateSubscriber(email, password, nome, planCode, sta
   }
   return { ok: true, id: r.id };
 }
+// Gera nova senha e envia login+senha por e-mail ao assinante (acesso).
+export async function adminEmailCredentials(userId) { return callAdmin('send_credentials', { user_id: userId }); }
 export async function adminSetAdmin(userId, value) { return callAdmin('set_admin', { user_id: userId, value }); }
 // Equipe (seats) — admin (qualquer conta) ou o próprio dono (sua conta)
 export async function listMembers(ownerId) {

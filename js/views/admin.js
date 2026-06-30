@@ -110,19 +110,27 @@ async function loadAssinantes(body) {
     wire: (b) => b.querySelectorAll('[data-edit]').forEach(btn => btn.onclick = () => { const u = subs.find(x => x.id === btn.dataset.edit); openSubscriber(u); }),
   });
 }
-// Cria assinante e já vincula plano + status (ex.: plano grátis + status 'active' = acesso total sem pagar).
+// Cria assinante e já vincula plano + status. "preencher no 1º login" deixa nome/setor/nicho/Instagram
+// em branco → o onboarding aparece no 1º acesso do assinante.
 function openNovoAssinante(plans, done) {
-  const planOpts = [{ v: '', t: '— sem plano (demo) —' }].concat(plans.map(p => ({ v: p.code, t: `${p.code} · ${p.name}${p.price_cents ? '' : ' · grátis'}` })));
+  const planOpts = [{ v: '', t: '— sem plano (demo) —' }].concat(plans.map(p => ({ v: p.code, t: `${p.code} · ${p.name}` })));
   openForm('🧑‍💼 Novo assinante', [
     { key: 'email', label: 'E-mail (login e vínculo da compra)', type: 'email', ph: 'cliente@email.com' },
     { key: 'senha', label: 'Senha inicial (mín. 6)', type: 'text', ph: 'mín. 6 caracteres' },
-    { key: 'nome', label: 'Nome', type: 'text' },
     { key: 'plano', label: 'Plano', type: 'select', options: planOpts },
     { key: 'status', label: 'Status da assinatura', type: 'select', value: 'active', options: ['active', 'trialing', 'pending', 'canceled'].map(s => ({ v: s, t: stPt(s) })) },
+    { key: 'onboardLater', label: 'O assinante preenche os dados (nome, setor, nicho, Instagram) no 1º login', type: 'checkbox', value: true },
+    { key: 'nome', label: 'Nome', type: 'text' },
+    { key: 'setor', label: 'Setor / segmento', type: 'text' },
+    { key: 'niche', label: 'Nicho / template', type: 'text' },
+    { key: 'instagram', label: 'Instagram', type: 'text' },
   ], async (v) => {
     if (!v.email || v.senha.length < 6) return { error: 'Informe e-mail e senha (mín. 6 caracteres).' };
+    const later = v.onboardLater;   // marcado → não grava os dados → onboarding abre no 1º login
+    const nome = later ? '' : v.nome;
+    const extras = later ? {} : { setor: v.setor, instagram: v.instagram, niche: v.niche };
     // Sem plano = fica em demo (não cria assinatura ativa); com plano = aplica o status escolhido.
-    const r = await cloud.adminCreateSubscriber(v.email, v.senha, v.nome, v.plano, v.plano ? v.status : '');
+    const r = await cloud.adminCreateSubscriber(v.email, v.senha, nome, v.plano, v.plano ? v.status : '', extras);
     if (r && r.ok) { done(); return true; }
     return { error: (r && r.error) || 'Erro ao criar assinante.' };
   }, 'Criar assinante');
@@ -146,7 +154,7 @@ function openSubscriber(u) {
           </div>
           <button class="btn btn-sm btn-primary" id="sb-save-dados" style="margin-top:8px">Salvar dados & login</button></div>
         <div class="sub-sec"><div class="ig-sub">Senha</div>
-          <div class="toolbar" style="gap:6px"><input id="sb-pw" type="text" placeholder="nova senha (mín. 6)" style="width:200px"><button class="btn btn-sm" id="sb-set-pw">Definir</button><button class="btn btn-sm" id="sb-gen-pw">Gerar aleatória</button><button class="btn btn-sm" id="sb-reset">✉️ Enviar reset por e-mail</button></div>
+          <div class="toolbar" style="gap:6px"><input id="sb-pw" type="text" placeholder="nova senha (mín. 6)" style="width:200px"><button class="btn btn-sm" id="sb-set-pw">Definir</button><button class="btn btn-sm" id="sb-gen-pw">Gerar aleatória</button><button class="btn btn-sm" id="sb-cred">📧 Enviar login + senha</button><button class="btn btn-sm" id="sb-reset">✉️ Enviar reset</button></div>
           <div id="sb-pw-out" class="hint" style="margin-top:6px"></div></div>
         <div class="sub-sec"><div class="ig-sub">Assinatura</div>
           <div class="toolbar" style="gap:6px"><select id="sb-plan">${planOpts(u.sub && u.sub.plan_code)}</select><select id="sb-status">${stOptsFn((u.sub && u.sub.status) || 'pending')}</select><button class="btn btn-sm btn-primary" id="sb-save-sub">Salvar</button><button class="btn btn-sm" id="sb-renew">Renovar</button><button class="btn btn-sm" id="sb-cancel">Cancelar</button></div></div>
@@ -167,6 +175,7 @@ function openSubscriber(u) {
       body.querySelector('#sb-set-pw').onclick = async () => { const pw = body.querySelector('#sb-pw').value; if (pw.length < 6) { alert('Mínimo 6 caracteres.'); return; } const r = await cloud.adminSetUserPassword(u.id, pw); body.querySelector('#sb-pw-out').textContent = r.ok ? 'Senha definida ✓' : 'Erro ao definir.'; };
       body.querySelector('#sb-gen-pw').onclick = async () => { const r = await cloud.adminGenPassword(u.id); body.querySelector('#sb-pw-out').textContent = r.ok ? `Nova senha: ${r.senha} (anote e repasse)` : 'Erro.'; };
       body.querySelector('#sb-reset').onclick = async () => { const alvo = u.email || u.purchase_email; if (!alvo) { body.querySelector('#sb-pw-out').textContent = 'Sem e-mail de login para enviar.'; return; } const r = await cloud.resetPassword(alvo); body.querySelector('#sb-pw-out').textContent = (r && !r.error) ? `E-mail de redefinição enviado para ${alvo} ✓` : 'Erro: ' + ((r && r.error && r.error.message) || 'falhou'); };
+      body.querySelector('#sb-cred').onclick = async () => { const r = await cloud.adminEmailCredentials(u.id); body.querySelector('#sb-pw-out').textContent = (r && r.ok) ? (r.enviado ? `Login + senha enviados por e-mail ✓ (senha: ${r.senha})` : `Senha redefinida (${r.senha}); e-mail não enviado — configure o Resend em Integrações.`) : 'Erro: ' + ((r && r.error) || 'falhou'); };
       // Assinatura
       const salvarSub = async (status) => { const ok = await cloud.adminSetSubscription(u.id, body.querySelector('#sb-plan').value, status || body.querySelector('#sb-status').value); if (ok) { u.sub = { plan_code: body.querySelector('#sb-plan').value, status: status || body.querySelector('#sb-status').value }; } return ok; };
       body.querySelector('#sb-save-sub').onclick = async (e) => flash(e.target, await salvarSub());
@@ -203,76 +212,81 @@ async function loadSistema(body) {
   });
 }
 
-// ---- Planos (busca) ----
+// ---- Planos (lista; clicar abre popup de edição) ----
 async function loadPlans(body) {
   const plans = await cloud.adminListPlans();
-  let q = '';
-  function draw() {
-    const filt = plans.filter(p => !q || (p.name || '').toLowerCase().includes(q) || (p.code || '').toLowerCase().includes(q));
-    const rows = filt.map(p => `<tr data-code="${esc(p.code)}">
-      <td><strong>${esc(p.code)}</strong></td>
-      <td><input class="pl-nome" type="text" value="${esc(p.name)}" style="min-width:120px"></td>
-      <td><input class="pl-max" type="number" value="${p.max_companies}" style="width:48px"></td>
-      <td><input class="pl-seats" type="number" value="${p.max_seats || 1}" style="width:48px"></td>
-      <td><input class="pl-preco" type="number" step="0.01" value="${(p.price_cents || 0) / 100}" style="width:72px"></td>
-      <td><input class="pl-oferta" type="text" value="${esc(p.green_offer_id || '')}" placeholder="oferta" style="width:90px"></td>
-      <td><input class="pl-niche" type="text" value="${esc(p.niche || '')}" placeholder="nicho" style="width:80px"></td>
-      <td><button class="btn btn-sm btn-primary" data-savep="${esc(p.code)}">Salvar</button></td></tr>`).join('') || '<tr><td colspan="8" class="empty">Nenhum plano.</td></tr>';
-    body.innerHTML = `<div class="gc-add-row"><button class="btn btn-sm btn-primary" id="pl-novo">+ Novo plano</button></div>
-      <p class="hint" style="margin:0 0 8px">"Oferta Green" liga a compra ao plano · "Seats" = membros de equipe · preço 0 = grátis.</p>
-      <input id="pl-q" class="gc-search" placeholder="🔎 Buscar plano…" value="${esc(q)}">
-      <div class="table-wrap" style="box-shadow:none"><table><thead><tr><th>Cód</th><th>Nome</th><th>Empr.</th><th>Seats</th><th>R$/mês</th><th>Oferta</th><th>Nicho</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`;
-    const qi = body.querySelector('#pl-q'); qi.oninput = () => { q = qi.value.toLowerCase().trim(); draw(); const n = body.querySelector('#pl-q'); n.focus(); n.setSelectionRange(n.value.length, n.value.length); };
-    body.querySelector('#pl-novo').onclick = () => openNovoPlano(plans, () => loadPlans(body));
-    body.querySelectorAll('[data-savep]').forEach(b => b.onclick = async () => { const tr = b.closest('tr'); flash(b, await cloud.adminUpsertPlan({ code: b.dataset.savep, name: tr.querySelector('.pl-nome').value, max_companies: Number(tr.querySelector('.pl-max').value) || 1, max_seats: Number(tr.querySelector('.pl-seats').value) || 1, price_cents: Math.round(Number(tr.querySelector('.pl-preco').value) * 100) || 0, green_offer_id: tr.querySelector('.pl-oferta').value.trim() || null, niche: tr.querySelector('.pl-niche').value.trim() || null })); });
-  }
-  draw();
+  paginar(body, plans, {
+    ph: '🔎 Buscar plano…', cols: 2,
+    addBtn: { label: '+ Novo plano', onClick: () => openNovoPlano(plans, () => loadPlans(body)) },
+    filtro: (p, q) => (p.code || '').toLowerCase().includes(q) || (p.name || '').toLowerCase().includes(q),
+    linha: (p) => `<tr class="sub-row"><td><strong>${esc(p.code)}</strong> · ${esc(p.name)}<div class="hint">${p.max_companies} empresa(s) · ${p.max_seats || 1} seat(s)${p.green_offer_id ? ' · oferta ' + esc(p.green_offer_id) : ' · sem oferta'}</div></td><td style="text-align:right"><button class="btn btn-sm btn-primary" data-edit="${esc(p.code)}">Editar</button></td></tr>`,
+    wire: (b) => b.querySelectorAll('[data-edit]').forEach(btn => btn.onclick = () => { const p = plans.find(x => x.code === btn.dataset.edit); openPlano(p, () => loadPlans(body)); }),
+  });
 }
-// Novo plano (inclui o caso grátis/full access: preço 0 + muitas empresas/seats).
+function openPlano(p, done) {
+  openForm(`💳 Plano ${p.code}`, [
+    { key: 'name', label: 'Nome do plano', type: 'text', value: p.name },
+    { key: 'max_companies', label: 'Empresas (máx.)', type: 'number', value: p.max_companies },
+    { key: 'max_seats', label: 'Seats (máx.)', type: 'number', value: p.max_seats || 1 },
+    { key: 'green_offer_id', label: 'Código da oferta Green (rastreio da compra)', type: 'text', value: p.green_offer_id || '' },
+  ], async (v) => {
+    // preço e nicho ficam no banco mas não são editados aqui (preservados); a OFERTA é o rastreio.
+    const ok = await cloud.adminUpsertPlan({ code: p.code, name: v.name || p.code, max_companies: Number(v.max_companies) || 1, max_seats: Number(v.max_seats) || 1, green_offer_id: v.green_offer_id || null, price_cents: p.price_cents || 0, niche: p.niche || null, active: p.active !== false });
+    if (ok) { done(); return true; }
+    return { error: 'Erro ao salvar o plano.' };
+  }, 'Salvar plano');
+}
 function openNovoPlano(plans, done) {
   openForm('💳 Novo plano', [
     { key: 'code', label: 'Código (único, ex.: FREE)', type: 'text', ph: 'FREE' },
-    { key: 'name', label: 'Nome', type: 'text', ph: 'Gratuito — Acesso total' },
+    { key: 'name', label: 'Nome do plano', type: 'text', ph: 'Gratuito — Acesso total' },
     { key: 'max_companies', label: 'Empresas (máx.)', type: 'number', value: 1, ph: '99 = ilimitado' },
     { key: 'max_seats', label: 'Seats / equipe (máx.)', type: 'number', value: 1 },
-    { key: 'price', label: 'Preço R$/mês (0 = grátis)', type: 'number', value: 0 },
-    { key: 'green_offer_id', label: 'Oferta Green (opcional)', type: 'text' },
-    { key: 'niche', label: 'Nicho (opcional)', type: 'text' },
+    { key: 'green_offer_id', label: 'Código da oferta Green (rastreio)', type: 'text' },
   ], async (v) => {
     const code = (v.code || '').trim().toUpperCase();
     if (!code) return { error: 'Informe o código do plano.' };
-    if ((plans || []).some(p => (p.code || '').toUpperCase() === code)) return { error: `Já existe um plano "${code}". Edite-o na tabela.` };   // não sobrescreve silenciosamente
-    const ok = await cloud.adminUpsertPlan({ code, name: v.name || code, max_companies: Number(v.max_companies) || 1, max_seats: Number(v.max_seats) || 1, price_cents: Math.round(Number(v.price) * 100) || 0, green_offer_id: v.green_offer_id || null, niche: v.niche || null, active: true });
+    if ((plans || []).some(p => (p.code || '').toUpperCase() === code)) return { error: `Já existe um plano "${code}". Edite-o na lista.` };
+    const ok = await cloud.adminUpsertPlan({ code, name: v.name || code, max_companies: Number(v.max_companies) || 1, max_seats: Number(v.max_seats) || 1, green_offer_id: v.green_offer_id || null, price_cents: 0, niche: null, active: true });
     if (ok) { done(); return true; }
     return { error: 'Erro ao salvar o plano.' };
   }, 'Criar plano');
 }
 
-// ---- Templates (busca) ----
+// ---- Templates (lista; clicar abre popup de edição) ----
 async function loadTemplates(body) {
   const ts = await cloud.adminListTemplates();
-  let q = '';
-  function draw() {
-    const filt = ts.filter(t => !q || (t.nome || '').toLowerCase().includes(q) || (t.id || '').toLowerCase().includes(q) || (t.niche || '').toLowerCase().includes(q));
-    const rows = filt.map(t => `<tr data-id="${esc(t.id)}"><td><strong>${esc(t.id)}</strong></td><td><input class="tp-nome" type="text" value="${esc(t.nome)}" style="min-width:120px"></td><td><input class="tp-niche" type="text" value="${esc(t.niche || '')}" style="width:90px"></td><td style="text-align:center"><input type="checkbox" class="tp-active" ${t.active ? 'checked' : ''}></td><td><button class="btn btn-sm btn-primary" data-savet="${esc(t.id)}">Salvar</button></td></tr>`).join('') || '<tr><td colspan="5" class="empty">Nenhum template.</td></tr>';
-    body.innerHTML = `<div class="gc-add-row"><button class="btn btn-sm btn-primary" id="tp-novo">+ Novo template</button></div>
-      <input id="tp-q" class="gc-search" placeholder="🔎 Buscar template…" value="${esc(q)}">
-      <div class="table-wrap" style="box-shadow:none"><table><thead><tr><th>ID</th><th>Nome</th><th>Nicho</th><th>Ativo</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`;
-    const qi = body.querySelector('#tp-q'); qi.oninput = () => { q = qi.value.toLowerCase().trim(); draw(); const n = body.querySelector('#tp-q'); n.focus(); n.setSelectionRange(n.value.length, n.value.length); };
-    body.querySelectorAll('[data-savet]').forEach(b => b.onclick = async () => { const tr = b.closest('tr'); flash(b, await cloud.adminUpsertTemplate({ id: b.dataset.savet, nome: tr.querySelector('.tp-nome').value, niche: tr.querySelector('.tp-niche').value, active: tr.querySelector('.tp-active').checked })); });
-    body.querySelector('#tp-novo').onclick = () => openForm('🗂️ Novo template', [
-      { key: 'id', label: 'Slug (ex.: advogado)', type: 'text', ph: 'advogado' },
-      { key: 'nome', label: 'Nome', type: 'text' },
-      { key: 'niche', label: 'Nicho (opcional)', type: 'text' },
-    ], async (v) => {
-      const id = (v.id || '').toLowerCase().replace(/\s+/g, '-');
-      if (!id || !v.nome) return { error: 'Informe slug e nome.' };
-      const ok = await cloud.adminUpsertTemplate({ id, nome: v.nome, niche: v.niche || null, active: true });
-      if (ok) { loadTemplates(body); return true; }
-      return { error: 'Erro ao salvar o template.' };
-    }, 'Criar template');
-  }
-  draw();
+  paginar(body, ts, {
+    ph: '🔎 Buscar template…', cols: 2,
+    addBtn: { label: '+ Novo template', onClick: () => openNovoTemplate(() => loadTemplates(body)) },
+    filtro: (t, q) => (t.id || '').toLowerCase().includes(q) || (t.nome || '').toLowerCase().includes(q) || (t.niche || '').toLowerCase().includes(q),
+    linha: (t) => `<tr class="sub-row"><td><strong>${esc(t.id)}</strong> · ${esc(t.nome)} ${t.active ? '<span class="emp-tag">ativo</span>' : '<span class="hint">inativo</span>'}<div class="hint">${esc(t.niche || 'sem nicho')}</div></td><td style="text-align:right"><button class="btn btn-sm btn-primary" data-edit="${esc(t.id)}">Editar</button></td></tr>`,
+    wire: (b) => b.querySelectorAll('[data-edit]').forEach(btn => btn.onclick = () => { const t = ts.find(x => x.id === btn.dataset.edit); openTemplate(t, () => loadTemplates(body)); }),
+  });
+}
+function openTemplate(t, done) {
+  openForm(`🗂️ Template ${t.id}`, [
+    { key: 'nome', label: 'Nome', type: 'text', value: t.nome },
+    { key: 'niche', label: 'Nicho', type: 'text', value: t.niche || '' },
+    { key: 'active', label: 'Ativo', type: 'checkbox', value: !!t.active },
+  ], async (v) => {
+    const ok = await cloud.adminUpsertTemplate({ id: t.id, nome: v.nome || t.id, niche: v.niche || null, active: v.active });
+    if (ok) { done(); return true; }
+    return { error: 'Erro ao salvar o template.' };
+  }, 'Salvar template');
+}
+function openNovoTemplate(done) {
+  openForm('🗂️ Novo template', [
+    { key: 'id', label: 'Slug (ex.: advogado)', type: 'text', ph: 'advogado' },
+    { key: 'nome', label: 'Nome', type: 'text' },
+    { key: 'niche', label: 'Nicho (opcional)', type: 'text' },
+  ], async (v) => {
+    const id = (v.id || '').toLowerCase().replace(/\s+/g, '-');
+    if (!id || !v.nome) return { error: 'Informe slug e nome.' };
+    const ok = await cloud.adminUpsertTemplate({ id, nome: v.nome, niche: v.niche || null, active: true });
+    if (ok) { done(); return true; }
+    return { error: 'Erro ao salvar o template.' };
+  }, 'Criar template');
 }
 
 // ---- Integrações em blocos ----

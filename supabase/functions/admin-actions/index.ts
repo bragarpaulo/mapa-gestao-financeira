@@ -41,6 +41,20 @@ async function emailMembro(to: string, nome: string, senha: string, dono: string
     <p style="color:#64748B;font-size:13px">Recomendamos trocar a senha no primeiro acesso.</p></div>`;
   await fetch('https://api.resend.com/emails', { method: 'POST', headers: { Authorization: `Bearer ${KEY}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ from: FROM, to, subject: 'Você foi adicionado ao GPR 🎉', html }) });
 }
+async function emailAcesso(to: string, nome: string, senha: string): Promise<boolean> {
+  const cfg: any = {}; const r = await rest('integrations?select=key,value'); if (Array.isArray(r.data)) r.data.forEach((x: any) => { if (x.value) cfg[x.key] = x.value; });
+  const KEY = cfg.resend_api_key, FROM = cfg.from_email || 'GPR <onboarding@resend.dev>', APP = cfg.app_url || 'https://mapa-gestao-financeira.pages.dev/';
+  if (!KEY) return false;
+  const html = `<div style="font-family:Arial,sans-serif;max-width:480px;margin:auto;padding:24px;color:#0F172A">
+    <div style="font-size:20px;font-weight:800">GPR <span style="color:#64748B;font-weight:600;font-size:12px">&middot; Gest&atilde;o Para Resultado</span></div>
+    <h2 style="font-size:18px">Seu acesso ao GPR 🔑</h2>
+    <p>Ol&aacute;${nome ? ' ' + esc(nome) : ''}! Use os dados abaixo para entrar:</p>
+    <p><b>Login:</b> ${esc(to)}<br><b>Senha:</b> ${esc(senha)}</p>
+    <p><a href="${APP}" style="display:inline-block;background:#1D4ED8;color:#fff;text-decoration:none;font-weight:700;padding:12px 20px;border-radius:10px">Acessar o GPR</a></p>
+    <p style="color:#64748B;font-size:13px">Recomendamos trocar a senha no primeiro acesso.</p></div>`;
+  const rr = await fetch('https://api.resend.com/emails', { method: 'POST', headers: { Authorization: `Bearer ${KEY}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ from: FROM, to, subject: 'Seu acesso ao GPR 🔑', html }) });
+  return rr.ok;
+}
 const esc = (s: string) => String(s || '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c] as string));
 
 Deno.serve(async (req: Request) => {
@@ -62,8 +76,17 @@ Deno.serve(async (req: Request) => {
       if (await uidExist(body.email)) return json({ error: 'e-mail já cadastrado' }, 400);
       const id = await createUser(body.email, body.password || rnd());
       if (!id) return json({ error: 'não criou' }, 400);
-      await rest(`profiles?id=eq.${id}`, { method: 'PATCH', body: JSON.stringify({ is_admin: false, purchase_email: body.email, full_name: body.nome || null, setor: body.setor || null }) });
+      await rest(`profiles?id=eq.${id}`, { method: 'PATCH', body: JSON.stringify({ is_admin: false, purchase_email: body.email, full_name: body.nome || null, setor: body.setor || null, instagram: body.instagram || null, niche: body.niche || null }) });
       return json({ ok: true, id });
+    }
+    if (a === 'send_credentials') {   // gera senha + envia login+senha por e-mail (acesso do assinante)
+      if (!admin) return forbid();
+      const p = await rest(`profiles?id=eq.${body.user_id}&select=email,full_name`);
+      const prof: any = Array.isArray(p.data) && p.data[0]; if (!prof || !prof.email) return json({ error: 'assinante sem e-mail' }, 400);
+      const senha = rnd();
+      if (!(await setUser(body.user_id, { password: senha }))) return json({ error: 'não definiu senha' }, 400);
+      const enviado = await emailAcesso(prof.email, prof.full_name || '', senha);
+      return json({ ok: true, senha, enviado });
     }
     if (a === 'create_member') {
       const ownerId = body.owner_id || uid;
