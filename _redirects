@@ -1,0 +1,13 @@
+# Cloudflare Pages — servir o GPR no subcaminho /gpr (domínio p4gestao.com.br/gpr).
+# Só o Cloudflare lê este arquivo; o GitHub Pages (bragarpaulo.github.io/GPR) ignora e segue igual.
+# O app usa caminhos RELATIVOS + rotas por hash (#...), então funciona sob qualquer base.
+# Regras avaliadas de cima p/ baixo, 1ª que casar vence. Status 200 = reescrita (mantém a URL).
+
+# Raiz do domínio cai no /gpr
+/            /gpr/          302
+# /gpr sem barra → normaliza p/ /gpr/ (faz os caminhos relativos resolverem sob /gpr/)
+/gpr         /gpr/          301
+# /gpr/ serve o app (reescrita, sem mudar a URL)
+/gpr/        /index.html    200
+# assets do app sob /gpr/ (ex.: /gpr/js/app.js → /js/app.js)
+/gpr/*       /:splat        200
