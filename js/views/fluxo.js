@@ -1,5 +1,5 @@
 // views/fluxo.js — Fluxo de Caixa: resumo, projeção, aging, tabela mensal e anexos.
-import { getState, addPlataforma, setPlataformaCampo, removerPlataforma, setFluxoMesReceber, isAggregated, chartLabelOn, nomeCategoria, setUiCampo } from '../store.js';
+import { getState, addPlataforma, setPlataformaCampo, removerPlataforma, isAggregated, chartLabelOn, nomeCategoria, setUiCampo } from '../store.js';
 import { calcFluxo, contasReceberPorCanal, calcDashboard, calcAging, calcProjecao } from '../calc.js';
 import { MESES } from '../config.js';
 import { pageHead, thMeses, moneyInput, delta, chartDlBtn } from '../ui.js';
@@ -34,7 +34,6 @@ export function render(container) {
   const d = calcDashboard(s);
   const ag = calcAging(s);
   const proj = calcProjecao(s, 30);
-  const mesReceber = s.ui.fluxoMesReceber ?? Math.min(new Date().getMonth(), 11);
   const sum = (a) => a.reduce((x, y) => x + y, 0);
   // Entradas/saídas por categoria (competência) — reusa o cálculo do dashboard, com seletor próprio.
   const fxCanalData = (d.canalTot || []).filter(c => c.valor > 0).map(c => ({ id: c.id, label: c.canal, valor: c.valor, pct: c.pct }));
@@ -78,11 +77,10 @@ export function render(container) {
       </div></div>`;
   };
 
-  const cr = contasReceberPorCanal(s, mesReceber);
+  const cr = contasReceberPorCanal(s);
   const crRows = cr.map(x => `<tr><td>${esc(x.canal)}</td><td class="num">${fmtBRL0(x.valor)}</td></tr>`).join('')
-    || `<tr><td colspan="2" class="empty">Sem canais cadastrados.</td></tr>`;
+    || `<tr><td colspan="2" class="empty">✅ Nenhuma conta atrasada a receber.</td></tr>`;
   const crTotal = cr.reduce((a, x) => a + x.valor, 0);
-  const mesOpts = MESES.map((m, i) => `<option value="${i}" ${mesReceber === i ? 'selected' : ''}>${m}/${ano}</option>`).join('');
 
   const mesAtual = Math.min(new Date().getMonth(), 11);
   const saldoAnt = mesAtual === 0 ? f.saldoInicialAno : f.saldoConta[mesAtual - 1];
@@ -145,7 +143,6 @@ export function render(container) {
       </div>
       <div>
         <div class="section-title">Contas a receber de clientes (atrasado)</div>
-        <div class="toolbar"><label class="hint">Mês:</label><select id="mes-receber">${mesOpts}</select></div>
         <div class="table-wrap"><table>
           <thead><tr><th>Canal de venda</th><th class="num">A receber</th></tr></thead>
           <tbody>${crRows}</tbody>
@@ -215,7 +212,6 @@ function wire(container) {
   const ro = isAggregated();   // consolidado: bloqueia edição das plataformas (mês-receber é filtro de UI, segue ativo)
   container.addEventListener('change', (ev) => {
     const t = ev.target;
-    if (t.id === 'mes-receber') { setFluxoMesReceber(Number(t.value)); return; }
     if (ro) return;
     if (t.dataset.pf) {
       const campo = t.dataset.campo;

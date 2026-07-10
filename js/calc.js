@@ -130,11 +130,15 @@ export function calcFluxo(s) {
   const saldoPrevisto = cols.map((_, i) => saldoConta[i] + entradasPrev[i] - saidasPrev[i]);
   return { cols, saldoInicial, entradas, saidas, resultado, saldoConta, entradasPrev, entradasAVencer, saidasPrev, saldoPrevisto, saldoInicialAno };
 }
-export function contasReceberPorCanal(s, mesIdx) {
+// TODAS as contas a receber ATRASADAS (vencidas e não recebidas) do ano, agrupadas por canal.
+// Sem filtro de mês — antes só pegava um mês exato de recebimento, deixando as demais fora.
+export function contasReceberPorCanal(s) {
   const ano = anoAtivo(s);
-  const k = chaveMes(mesIdx, ano);
-  const vd = vendasDerivadas(s);
-  return s.canais.map(ch => ({ canal: ch.nome, valor: vd.reduce((a, v) => a + (v.status === STATUS_VENDA.ATRASADO && v.mesAnoRecebimento === k && v.canalId === ch.id ? num(v.valor) : 0), 0) }));
+  const atras = vendasDerivadas(s).filter(v => v.status === STATUS_VENDA.ATRASADO && String(v.mesAnoRecebimento).endsWith('/' + ano));
+  const out = s.canais.map(ch => ({ canal: ch.nome, valor: atras.reduce((a, v) => a + (v.canalId === ch.id ? num(v.valor) : 0), 0) }));
+  const semCanal = atras.reduce((a, v) => a + (!s.canais.some(c => c.id === v.canalId) ? num(v.valor) : 0), 0);
+  if (semCanal > 0) out.push({ canal: '(sem canal)', valor: semCanal });
+  return out.filter(x => x.valor > 0).sort((a, b) => b.valor - a.valor);
 }
 
 // ===== Orçamento (por ano) ================================================
