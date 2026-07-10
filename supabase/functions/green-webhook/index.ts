@@ -62,7 +62,13 @@ async function assinaturaValida(req: Request, raw: string): Promise<boolean> {
   const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(GREEN_SECRET), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
   const mac = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(raw));
   const hex = [...new Uint8Array(mac)].map(b => b.toString(16).padStart(2, '0')).join('');
-  return sig === hex || sig === `sha256=${hex}`;
+  return timingSafeEqual(sig, hex) || timingSafeEqual(sig, `sha256=${hex}`);   // M6: comparação de tempo constante
+}
+// Comparação de tempo constante (evita timing attack ao comparar a assinatura).
+function timingSafeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let r = 0; for (let i = 0; i < a.length; i++) r |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return r === 0;
 }
 
 // Mapeia o payload da Green (tolerante a vários nomes — ajuste ao ver um evento real).

@@ -116,8 +116,10 @@ export async function getMyAccess(prof = null) {
     // Plano só é necessário p/ assinante ATIVO (limites do plano). Grátis/cancelado não consultam `plans`.
     if (ativo && sub.plan_code) { const { data: pl } = await c.from('plans').select('max_companies,max_seats').eq('code', sub.plan_code).maybeSingle(); if (pl) sub.plan = pl; }
     // Config (free_signup + cancel_behavior) só é necessária quando NÃO está ativo — preserva o nº de queries do assinante pago.
+    // Lida via RPC get_signup_config (expõe SÓ os flags de signup); a tabela app_config agora é só-admin (M2).
+    // Se a RPC falhar/for antiga, degrada para {} → free_signup ligado por padrão (estado atual do produto).
     let cfg = {};
-    if (!ativo) { const { data: row } = await c.from('app_config').select('value').eq('key', 'geral').maybeSingle(); cfg = (row && row.value) || {}; }
+    if (!ativo) { const { data: rows } = await c.rpc('get_signup_config'); cfg = (Array.isArray(rows) ? rows[0] : rows) || {}; }
     return decideAccess({ isAdmin: false, sub, cfg });
   } catch (e) { return { ...DEMO_ACCESS }; }
 }

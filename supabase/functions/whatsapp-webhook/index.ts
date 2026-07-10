@@ -25,6 +25,30 @@ async function carregarConfig() {
   cfg.wa_verify_token ||= Deno.env.get('WA_VERIFY_TOKEN') || '';
 }
 
+// Comparação de tempo constante (evita timing attack em segredos).
+function timingSafeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let r = 0; for (let i = 0; i < a.length; i++) r |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return r === 0;
+}
+// C1: valida a assinatura da Meta (X-Hub-Signature-256 = HMAC-SHA256 do corpo cru com o App Secret).
+// FAIL-SAFE: sem `wa_app_secret` configurado (WhatsApp desligado), REJEITA tudo — ninguém forja eventos.
+async function assinaturaMetaValida(req: Request, raw: string): Promise<boolean> {
+  const secret = cfg.wa_app_secret || Deno.env.get('WA_APP_SECRET') || '';
+  if (!secret) { console.warn('[wa] wa_app_secret ausente — rejeitando (WhatsApp inativo).'); return false; }
+  const sig = req.headers.get('x-hub-signature-256') || '';
+  if (!sig.startsWith('sha256=')) return false;
+  const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  const mac = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(raw));
+  const hex = [...new Uint8Array(mac)].map(b => b.toString(16).padStart(2, '0')).join('');
+  return timingSafeEqual('sha256=' + hex, sig);
+}
+// M5: rate limit simples por remetente (janela fixa via RPC rl_hit).
+async function rateOk(bucket: string, max: number, win: number): Promise<boolean> {
+  try { const r = await rest('rpc/rl_hit', { method: 'POST', body: JSON.stringify({ p_bucket: bucket, p_max: max, p_window_secs: win }) }); return r.data === true; }
+  catch { return true; }
+}
+
 async function responderWhats(to: string, texto: string) {
   if (!cfg.wa_token || !cfg.wa_phone_id) { console.warn('[wa] sem token/phone_id'); return; }
   await fetch(`https://graph.facebook.com/v20.0/${cfg.wa_phone_id}/messages`, {
@@ -128,11 +152,15 @@ Deno.serve(async (req: Request) => {
   }
   if (req.method !== 'POST') return new Response('ok', { status: 200 });
 
-  let body: any; try { body = await req.json(); } catch { return new Response('ok', { status: 200 }); }
+  // C1: valida a assinatura da Meta ANTES de qualquer processamento (corpo cru p/ o HMAC).
+  const raw = await req.text();
+  if (!(await assinaturaMetaValida(req, raw))) return new Response('forbidden', { status: 403 });
+  let body: any; try { body = JSON.parse(raw); } catch { return new Response('ok', { status: 200 }); }
   try {
     const msg = body?.entry?.[0]?.changes?.[0]?.value?.messages?.[0];
     if (!msg) return new Response('ok', { status: 200 });   // status/entrega → ignora
     const from = String(msg.from || '').replace(/\D/g, '');
+    if (!(await rateOk('wa:' + from, 20, 60))) return new Response('ok', { status: 200 });   // M5: no máx 20 msgs/min por número
     // número autorizado?
     const wa = await rest(`whatsapp_numbers?phone=eq.${from}&select=owner_id,authorized`);
     const rec = Array.isArray(wa.data) && wa.data[0];

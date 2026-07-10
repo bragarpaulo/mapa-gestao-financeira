@@ -349,9 +349,11 @@ async function loadIa(body) {
       <label class="cfg-field">WhatsApp — token (Meta) <input id="i-watoken" type="password" value="${esc(cfg.wa_token || '')}" placeholder="EAAG..."></label>
       <label class="cfg-field">WhatsApp — Phone Number ID <input id="i-waphone" type="text" value="${esc(cfg.wa_phone_id || '')}" placeholder="1234567890"></label>
       <label class="cfg-field">WhatsApp — Verify Token <input id="i-waverify" type="text" value="${esc(cfg.wa_verify_token || '')}" placeholder="defina um texto"></label>
+      <label class="cfg-field">WhatsApp — App Secret (Meta) <input id="i-waappsecret" type="password" value="${esc(cfg.wa_app_secret || '')}" placeholder="valida a assinatura dos webhooks"></label>
     </div>
+    <p class="hint" style="margin-top:6px">⚠️ Sem o <b>App Secret</b>, o webhook do WhatsApp REJEITA todas as mensagens (proteção). Preencha antes de ativar a IA no WhatsApp.</p>
     <button class="btn btn-sm btn-primary" id="blk-save" style="margin-top:12px">Salvar</button>`;
-  wireSave(body, [], () => ({ anthropic_api_key: body.querySelector('#i-anthropic').value.trim(), ai_model: body.querySelector('#i-model').value.trim(), wa_token: body.querySelector('#i-watoken').value.trim(), wa_phone_id: body.querySelector('#i-waphone').value.trim(), wa_verify_token: body.querySelector('#i-waverify').value.trim() }));
+  wireSave(body, [], () => ({ anthropic_api_key: body.querySelector('#i-anthropic').value.trim(), ai_model: body.querySelector('#i-model').value.trim(), wa_token: body.querySelector('#i-watoken').value.trim(), wa_phone_id: body.querySelector('#i-waphone').value.trim(), wa_verify_token: body.querySelector('#i-waverify').value.trim(), wa_app_secret: body.querySelector('#i-waappsecret').value.trim() }));
 }
 
 // ---- Configurações ----

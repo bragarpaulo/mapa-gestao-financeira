@@ -14,6 +14,11 @@ async function rest(path: string, opts: any = {}) {
   const t = await r.text(); let j: any = null; try { j = t ? JSON.parse(t) : null; } catch { j = t; }
   return { ok: r.ok, data: j };
 }
+// M5: rate limit por chamador (janela fixa via RPC rl_hit). Fail-open se o limiter falhar.
+async function rateOk(bucket: string, max: number, win: number): Promise<boolean> {
+  try { const r = await rest('rpc/rl_hit', { method: 'POST', body: JSON.stringify({ p_bucket: bucket, p_max: max, p_window_secs: win }) }); return r.data === true; }
+  catch { return true; }
+}
 async function callerUid(req: Request): Promise<string | null> {
   const auth = req.headers.get('Authorization') || '';
   if (!auth) return null;
@@ -62,6 +67,7 @@ Deno.serve(async (req: Request) => {
   if (req.method !== 'POST') return json({ error: 'método' }, 405);
   const uid = await callerUid(req);
   if (!uid) return json({ error: 'não autenticado' }, 401);
+  if (!(await rateOk('admin:' + uid, 60, 60))) return json({ error: 'muitas requisições, tente em instantes' }, 429);   // M5: 60/min por usuário
   const admin = await isAdmin(uid);
   let body: any; try { body = await req.json(); } catch { return json({ error: 'json' }, 400); }
   const a = body.action;
