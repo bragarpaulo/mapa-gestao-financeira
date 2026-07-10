@@ -45,7 +45,7 @@ function noPeriodoData(iso, anos, meses) {
 // HTML de UMA linha (d = despesa já derivada).
 function rowHtml(d, s, compOpts) {
   const recOn = !!d.recorrenciaId;
-  const recBtn = `<button class="rec-flag ${recOn ? 'on' : ''}" data-rec="${d.id}" title="${recOn ? 'Recorrente (' + esc(nomeRecorrencia(d.recorrenciaPeriodo)) + (d.recorrenciaFim ? ', até ' + d.recorrenciaFim : '') + ')' : 'Marcar como recorrente'}">🔁</button>`;
+  const recBtn = `<button class="rec-flag ${recOn ? 'on' : ''}" data-rec="${d.id}" title="${recOn ? 'Recorrente (' + esc(nomeRecorrencia(d.recorrenciaPeriodo)) + (d.recorrenciaFim ? ', até ' + esc(d.recorrenciaFim) : '') + ')' : 'Marcar como recorrente'}">🔁</button>`;
   return `
     <tr data-id="${d.id}" class="${ROWCLS[d.status] || ''}">
       <td class="col-chk"><input type="checkbox" class="rowchk" value="${d.id}"></td>

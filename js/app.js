@@ -29,6 +29,15 @@ import * as metas from './views/metas.js';
 import * as admin from './views/admin.js';
 import * as equipe from './views/equipe.js';
 
+// --- Segurança/bootstrap (client), antes de qualquer render ---
+// Frame-buster: bloqueia clickjacking onde não há header (GitHub Pages). No Cloudflare o _headers já
+// manda X-Frame-Options/frame-ancestors; CSP <meta> não cobre frame-ancestors. Fallback: esconde a página.
+try { if (window.top !== window.self) window.top.location = window.self.location; } catch (e) { document.documentElement.style.display = 'none'; }
+// Remove Service Workers antigos (o SW virou kill-switch; visitantes antigos podem ter um instalado).
+if ('serviceWorker' in navigator) navigator.serviceWorker.getRegistrations().then(rs => rs.forEach(r => r.unregister())).catch(() => {});
+// Seleciona o texto ao focar um input de moeda (era onfocus inline; virou delegado p/ CSP estrita).
+document.addEventListener('focusin', (e) => { const t = e.target; if (t && t.classList && t.classList.contains('money')) t.select(); });
+
 const VIEWS = { inicio, dashboard, cadastro, vendas, despesas, dre, dfc, fluxo, orcamento, planxreal, metaxreal, metas, admin, equipe };
 const ADMIN_ICO = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 4v5c0 4.4-3.1 7.6-8 9-4.9-1.4-8-4.6-8-9V7l8-4z"/><path d="M9 12l2 2 4-4"/></svg>`;
 const EQUIPE_ICO = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`;
@@ -534,3 +543,10 @@ window.__cloud = cloud;
 document.getElementById('btn-tema').addEventListener('click', toggleTema);
 document.getElementById('btn-limpar').addEventListener('click', () => { if (confirm('Apagar TODAS as empresas e dados e começar do zero?')) clearAll(); });
 document.getElementById('btn-sair').addEventListener('click', async () => { if (confirm('Sair da conta?')) { await cloud.signOut(); } });
+document.getElementById('btn-sair-limpar').addEventListener('click', async () => {
+  if (!confirm('Sair e APAGAR o cache deste navegador?\n\nSeus dados na nuvem continuam salvos — ao entrar de novo, tudo volta. Use em máquina compartilhada.')) return;
+  store.flushLocal();                 // garante que o último estado subiu antes de apagar o local
+  await cloud.signOut();
+  store.limparCacheLocal();
+  location.reload();
+});

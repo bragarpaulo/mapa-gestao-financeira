@@ -6,9 +6,10 @@ import { ensureExportLibs } from './lazylibs.js';
 const _moneyFmt = new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 export function fmtMoneyInput(v) { return 'R$ ' + _moneyFmt.format(num(v)); }
 
-// Input de MOEDA editável: mostra "R$ 55.000,00"; ao focar, seleciona tudo.
+// Input de MOEDA editável: mostra "R$ 55.000,00"; ao focar, seleciona tudo (via listener delegado
+// em app.js — sem onfocus inline, para permitir CSP estrita sem 'unsafe-inline' em script-src).
 export function moneyInput(value, attrs = '', width = 130) {
-  return `<input type="text" inputmode="decimal" class="money" style="width:${width}px" onfocus="this.select()" value="${fmtMoneyInput(value)}" ${attrs}>`;
+  return `<input type="text" inputmode="decimal" class="money" style="width:${width}px" value="${fmtMoneyInput(value)}" ${attrs}>`;
 }
 
 export function badgeVenda(status) {

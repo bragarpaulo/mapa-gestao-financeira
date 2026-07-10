@@ -1,8 +1,11 @@
-# Cloudflare Pages — controle de cache.
-# O app não usa hash de versão nos arquivos, então pedimos REVALIDAÇÃO sempre:
-# o navegador guarda em cache mas confirma com o servidor antes de usar (304 = rápido se
-# nada mudou; 200 = pega a versão nova após cada deploy). Acaba com "versão velha presa".
+# Cloudflare Pages — cache + segurança (headers reais; GitHub Pages ignora este arquivo → lá vale só o
+# CSP via <meta> + frame-buster do app.js).
+# Cache: o app não usa hash de versão nos arquivos → REVALIDAÇÃO sempre (304 rápido se nada mudou;
+# 200 pega a versão nova após deploy). Acaba com "versão velha presa".
 /*
   Cache-Control: no-cache
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
+  X-Frame-Options: DENY
+  Content-Security-Policy: default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' https://*.supabase.co wss://*.supabase.co; base-uri 'self'; form-action 'self'; object-src 'none'; frame-ancestors 'none'
+  Permissions-Policy: geolocation=(), microphone=(), camera=()

@@ -27,7 +27,7 @@ const ultimoDiaAno = (ano) => `${ano}-12-31`;
 // HTML de UMA linha (v = venda já derivada). Células derivadas marcadas com data-cell.
 function rowHtml(v, s) {
   const recOn = !!v.recorrenciaId;
-  const recBtn = `<button class="rec-flag ${recOn ? 'on' : ''}" data-rec="${v.id}" title="${recOn ? 'Recorrente (' + esc(nomeRecorrencia(v.recorrenciaPeriodo)) + (v.recorrenciaFim ? ', até ' + v.recorrenciaFim : '') + ')' : 'Marcar como recorrente'}">🔁</button>`;
+  const recBtn = `<button class="rec-flag ${recOn ? 'on' : ''}" data-rec="${v.id}" title="${recOn ? 'Recorrente (' + esc(nomeRecorrencia(v.recorrenciaPeriodo)) + (v.recorrenciaFim ? ', até ' + esc(v.recorrenciaFim) : '') + ')' : 'Marcar como recorrente'}">🔁</button>`;
   return `
     <tr data-id="${v.id}" class="${ROWCLS[v.status] || ''}">
       <td class="col-chk"><input type="checkbox" class="rowchk" value="${v.id}"></td>

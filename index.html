@@ -2,6 +2,11 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8" />
+  <!-- CSP: allowlist de origens. frame-ancestors NÃO funciona em <meta> (só header, ver _headers +
+       frame-buster no app.js). Precisa 'unsafe-inline' só em style (inúmeros style="" gerados em JS);
+       script é estrito (nada inline: o handler onfocus virou listener delegado; o cleanup de SW foi p/ app.js). -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' https://*.supabase.co wss://*.supabase.co; base-uri 'self'; form-action 'self'; object-src 'none'; frame-ancestors 'none'" />
+  <meta name="referrer" content="strict-origin-when-cross-origin" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0" />
   <meta name="theme-color" content="#0F172A" />
   <title>GPR — Gestão Para Resultado</title>
@@ -10,9 +15,11 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="css/styles.css" />
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" defer></script>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js" defer></script>
-  <!-- xlsx/html2canvas/jspdf/jspdf-autotable NÃO entram no boot: carregam sob demanda (js/lazylibs.js) ao Importar/Exportar -->
+  <!-- CDNs com versão FIXA + SRI (integrity) + crossorigin: comprometimento do CDN não executa JS
+       arbitrário (o browser rejeita se o hash não bater). supabase-js agora MINIFICADO (era ~3-4× maior). -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" defer integrity="sha384-9nhczxUqK87bcKHh20fSQcTGD4qq5GhayNYSYWqwBkINBhOfQLg/P5HG5lF1urn4" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.2/dist/umd/supabase.min.js" defer integrity="sha384-sgcvElP/LlNRtORGYFLO/9K/bENcpJK19HgvqslWXog6d8f/Va4TpltGiBlGntCM" crossorigin="anonymous"></script>
+  <!-- xlsx/html2canvas/jspdf/jspdf-autotable NÃO entram no boot: carregam sob demanda com SRI (js/lazylibs.js) ao Importar/Exportar -->
   <style>
     #boot-loader { position: fixed; inset: 0; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; background: linear-gradient(135deg, #1D4ED8, #0F172A 72%); color: #fff; font-family: Inter, system-ui, sans-serif; }
     #boot-loader .boot-logo { width: 60px; height: 60px; border-radius: 16px; background: rgba(255,255,255,.12); display: flex; align-items: center; justify-content: center; }
@@ -49,6 +56,7 @@
         <button id="btn-tema" class="btn btn-ghost sidebar-tema" title="Alternar tema claro/escuro">🌙 Tema escuro</button>
         <button id="btn-limpar" class="btn btn-ghost danger" title="Apaga os dados da empresa atual">🗑 Limpar tudo</button>
         <button id="btn-sair" class="btn btn-ghost" title="Sair da conta">🚪 Sair</button>
+        <button id="btn-sair-limpar" class="btn btn-ghost" title="Sai e apaga o cache deste navegador (máquina compartilhada). Seus dados na nuvem ficam salvos.">🔒 Sair e limpar dispositivo</button>
       </div>
     </aside>
     <div id="sidebar-overlay"></div>
@@ -68,15 +76,6 @@
     </main>
   </div>
 
-  <script>
-    // Service worker DESATIVADO: era a causa de versões antigas presas no navegador (anônima abria
-    // certo, normal não). Não registramos mais nenhum SW e cancelamos qualquer um já instalado +
-    // limpamos os caches. Assim o site vem sempre direto da rede e Ctrl+Shift+R pega a versão nova.
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.getRegistrations().then(rs => rs.forEach(r => r.unregister())).catch(() => {});
-    }
-    if (window.caches) { caches.keys().then(ks => ks.forEach(k => caches.delete(k))).catch(() => {}); }
-  </script>
   <script type="module" src="js/app.js"></script>
 </body>
 </html>

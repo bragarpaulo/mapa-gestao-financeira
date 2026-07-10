@@ -150,6 +150,8 @@ export function flushLocal() {
 }
 export function save() { if (_demo) { _rev++; return; } _rev++; _lastLocalSave = Date.now(); scheduleLocal(); scheduleCloud(); }
 if (typeof window !== 'undefined') window.addEventListener('beforeunload', flushLocal);
+// Apaga o cache local do estado financeiro deste usuário (máquina compartilhada). A nuvem fica intacta.
+export function limparCacheLocal() { clearTimeout(_localTimer); try { localStorage.removeItem(lsKey()); if (_scope) localStorage.removeItem('gpr_legado_visto_' + _scope); } catch (e) {} }
 function emit() { listeners.forEach(fn => fn(getState())); }
 export function subscribe(fn) { listeners.add(fn); return () => listeners.delete(fn); }
 
