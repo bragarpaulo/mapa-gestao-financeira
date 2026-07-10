@@ -1,5 +1,5 @@
 // views/resumo.js — KPIs e gráficos-resumo compartilhados (Dashboard e Fluxo de Caixa).
-import { kpi, kpi2, fmtBRL0, fmtPct, eyeToggle, chartDlBtn } from '../ui.js';
+import { kpi, kpi2, fmtBRL0, fmtPct, eyeToggle, chartDlBtn, seg } from '../ui.js';
 import { esc, anosSelecionados } from '../util.js';
 import { MESES } from '../config.js';
 import { chartLabelOn, getState } from '../store.js';
@@ -7,6 +7,23 @@ import { calcSeriesMultiAno } from '../calc.js';
 import * as charts from '../charts.js';
 
 const sum12 = (arr) => (arr || []).reduce((a, b) => a + (+b || 0), 0);
+
+// Widget genérico Pizza/Barras/Tabela (reusado no Dashboard e no Fluxo). data = [{id,label,valor,pct}].
+export function segChartCard(titulo, canvasId, segName, view, data) {
+  const seguidor = seg(segName, [{ val: 'pizza', label: 'Pizza' }, { val: 'barras', label: 'Barras' }, { val: 'tabela', label: 'Tabela' }], view);
+  let body;
+  if (view === 'tabela') {
+    const rows = data.map(d => `<tr><td>${esc(d.label)}</td><td class="num">${fmtBRL0(d.valor)}</td><td class="num">${fmtPct(d.pct)}</td><td style="width:110px"><div class="bar"><span style="width:${Math.min(100, d.pct * 100)}%"></span></div></td></tr>`).join('') || `<tr><td colspan="4" class="empty">Sem dados no período.</td></tr>`;
+    body = `<div class="table-wrap" style="box-shadow:none"><table><thead><tr><th>Item</th><th class="num">Valor</th><th class="num">% Total</th><th>Part.</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+  } else body = `<div class="chart-canvas-wrap"><canvas id="${canvasId}"></canvas></div>`;
+  const eye = view === 'tabela' ? '' : eyeToggle(canvasId, chartLabelOn(canvasId), view === 'pizza' ? '%' : 'Valores');
+  const dl = view === 'tabela' ? '' : chartDlBtn(canvasId, titulo);
+  return `<div class="card chart-box"><h3><span class="ch-title">${esc(titulo)}</span>${seguidor}<span class="ch-actions">${eye}${dl}</span></h3>${body}</div>`;
+}
+export function montarSegChart(canvasId, view, data, onClick) {
+  if (view === 'pizza') charts.pizza(canvasId, data.map(d => d.label), data.map(d => d.valor), onClick, chartLabelOn(canvasId));
+  else if (view === 'barras') charts.barras(canvasId, data.map(d => d.label), data.map(d => d.valor), onClick, true, chartLabelOn(canvasId));
+}
 function resumoLinha(pairs) {
   return `<div class="chart-summary">` + pairs.map(([l, v, cls]) => `<span><b class="${cls || ''}">${v}</b>${esc(l)}</span>`).join('') + `</div>`;
 }

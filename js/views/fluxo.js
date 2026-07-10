@@ -1,11 +1,11 @@
 // views/fluxo.js — Fluxo de Caixa: resumo, projeção, aging, tabela mensal e anexos.
-import { getState, addPlataforma, setPlataformaCampo, removerPlataforma, setFluxoMesReceber, isAggregated, chartLabelOn, nomeCategoria } from '../store.js';
+import { getState, addPlataforma, setPlataformaCampo, removerPlataforma, setFluxoMesReceber, isAggregated, chartLabelOn, nomeCategoria, setUiCampo } from '../store.js';
 import { calcFluxo, contasReceberPorCanal, calcDashboard, calcAging, calcProjecao } from '../calc.js';
 import { MESES } from '../config.js';
 import { pageHead, thMeses, moneyInput, delta, chartDlBtn } from '../ui.js';
 import { esc, num, fmtBRL0, fmtData, anoAtivo, mesAno, chaveMes } from '../util.js';
 import * as charts from '../charts.js';
-import { kpisCaixaProvisoes, cardRecebPag, cardGeracao } from './resumo.js';
+import { kpisCaixaProvisoes, cardRecebPag, cardGeracao, segChartCard, montarSegChart } from './resumo.js';
 
 function linha(label, arr, totalVal, cls = '') {
   const cells = arr.map(v => `<td class="num ${v < 0 ? 'neg' : ''}">${fmtBRL0(v)}</td>`).join('');
@@ -36,6 +36,10 @@ export function render(container) {
   const proj = calcProjecao(s, 30);
   const mesReceber = s.ui.fluxoMesReceber ?? Math.min(new Date().getMonth(), 11);
   const sum = (a) => a.reduce((x, y) => x + y, 0);
+  // Entradas/saídas por categoria (competência) — reusa o cálculo do dashboard, com seletor próprio.
+  const fxCanalData = (d.canalTot || []).filter(c => c.valor > 0).map(c => ({ id: c.id, label: c.canal, valor: c.valor, pct: c.pct }));
+  const fxCatData = (d.catDespesas || []).filter(c => c.valor > 0).map(c => ({ id: c.id, label: c.cat, valor: c.valor, pct: c.pct }));
+  const fxCanalView = s.ui.fluxoCanalView || 'barras', fxCatView = s.ui.fluxoCatView || 'barras';
 
   const body = [
     linha('Saldo Inicial', f.saldoInicial, f.saldoInicialAno, 'grp-row'),
@@ -110,6 +114,12 @@ export function render(container) {
     ${cardRecebPag(d)}
     ${cardGeracao(d)}
 
+    <div class="section-title">📊 Entradas e saídas por categoria (competência) · ${d.periodoLabel}</div>
+    <div class="grid charts-grid charts-grid-1">
+      ${segChartCard('Faturamento por canal', 'cv-fx-canal', 'fxCanal', fxCanalView, fxCanalData)}
+      ${segChartCard('Despesas por categoria', 'cv-fx-cat', 'fxCat', fxCatView, fxCatData)}
+    </div>
+
     <div class="section-title">🔮 Projeção de caixa (próximos 30 dias)</div>
     <div class="card chart-box"><h3>Saldo projetado ${chartDlBtn('ch-proj', 'Projecao-de-caixa')}</h3><div class="chart-canvas-wrap"><canvas id="ch-proj"></canvas></div></div>
 
@@ -162,6 +172,8 @@ export function render(container) {
   // Gráficos de CAIXA (não competência): Recebimentos×Pagamentos×Geração + Geração mês a mês.
   charts.recebPag('ch-recpag', d.serieMeses, d.serieRecebimentos, d.seriePagamentos, d.serieGeracaoCaixa, null, chartLabelOn('ch-recpag'));
   charts.lucroChart('ch-geracao', d.serieMeses, d.serieGeracaoCaixa, null, chartLabelOn('ch-geracao'), 'Geração');
+  montarSegChart('cv-fx-canal', fxCanalView, fxCanalData);
+  montarSegChart('cv-fx-cat', fxCatView, fxCatData);
   wire(container);
 }
 
@@ -172,9 +184,9 @@ function realizadasNoMes(s, ano) {
   const idxRef = sel.length === 1 ? sel[0] : (ano === hj.getFullYear() ? Math.min(hj.getMonth(), 11) : 11);
   const chave = chaveMes(idxRef, ano);
   const recebidas = s.vendas.filter(v => mesAno(v.dataRecebimento) === chave)
-    .sort((a, b) => String(a.dataRecebimento).localeCompare(String(b.dataRecebimento)));
+    .sort((a, b) => num(b.valor) - num(a.valor));   // maior → menor
   const pagas = s.despesas.filter(d => mesAno(d.dataPagamentoReal) === chave)
-    .sort((a, b) => String(a.dataPagamentoReal).localeCompare(String(b.dataPagamentoReal)));
+    .sort((a, b) => num(b.valor) - num(a.valor));   // maior → menor
   const totR = recebidas.reduce((a, v) => a + num(v.valor), 0);
   const totP = pagas.reduce((a, d) => a + num(d.valor), 0);
   const rowsR = recebidas.map(v => `<tr><td class="nowrap">${esc(fmtData(v.dataRecebimento))}</td><td>${esc(v.cliente || v.produto || v.pedido || '—')}</td><td class="num">${fmtBRL0(num(v.valor))}</td></tr>`).join('')
@@ -211,6 +223,9 @@ function wire(container) {
     }
   });
   container.addEventListener('click', (ev) => {
+    // Seguidor Pizza/Barras/Tabela dos gráficos por categoria (funciona também no consolidado — é UI).
+    const segBtn = ev.target.closest('.seg button');
+    if (segBtn) { setUiCampo(segBtn.closest('.seg').dataset.seg === 'fxCat' ? 'fluxoCatView' : 'fluxoCanalView', segBtn.dataset.segVal); return; }
     if (ro) return;
     const b = ev.target.closest('[data-action]');
     if (!b) return;

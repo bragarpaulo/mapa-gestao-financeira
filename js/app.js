@@ -47,6 +47,21 @@ function closeNav() { sidebar.classList.remove('open'); overlay.classList.remove
 document.getElementById('nav-toggle').addEventListener('click', openNav);
 overlay.addEventListener('click', closeNav);
 
+// ---- Recolher/expandir menu lateral (desktop) — persistido ----
+const layoutEl = document.getElementById('layout');
+function aplicarNavCollapsed() {
+  const on = localStorage.getItem('gpr_nav_collapsed') === '1';
+  layoutEl.classList.toggle('nav-collapsed', on);
+  const b = document.getElementById('btn-collapse');
+  if (b) { b.textContent = on ? '» Expandir' : '« Recolher'; b.title = on ? 'Expandir menu' : 'Recolher menu (só ícones)'; }
+}
+document.getElementById('btn-collapse').addEventListener('click', () => {
+  const on = localStorage.getItem('gpr_nav_collapsed') === '1';
+  localStorage.setItem('gpr_nav_collapsed', on ? '0' : '1');
+  aplicarNavCollapsed();
+});
+aplicarNavCollapsed();
+
 // Logo GPR (gradiente verde→azul) — usada no topo do mobile. Ícone de empresa (prédio) p/ o seletor.
 const LOGO_SVG = `<svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs><linearGradient id="gprlg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1D4ED8"/><stop offset="1" stop-color="#16A34A"/></linearGradient></defs><rect width="32" height="32" rx="8" fill="url(#gprlg)"/><path d="M8 22V14M14 22V10M20 22V16" stroke="#fff" stroke-width="2.4" stroke-linecap="round" fill="none"/><path d="M7 12l6-5 4 3 5-5" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 const PREDIO_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="3" width="11" height="18" rx="1"/><path d="M15 8h4a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1h-4"/><path d="M8 7h3M8 11h3M8 15h3"/></svg>`;
@@ -188,9 +203,9 @@ periodBarEl.addEventListener('click', (e) => {
 // (Config da empresa abre direto a aba Cadastro — sem modal.)
 
 function buildNav() {
-  let html = ABAS.map(a => `<a class="nav-item" data-route="${a.id}" href="#${a.id}"><span class="nav-ico">${a.icone}</span>${esc(a.nome)}</a>`).join('');
-  if (_isOwner) html += `<a class="nav-item" data-route="equipe" href="#equipe"><span class="nav-ico">${EQUIPE_ICO}</span>Equipe & WhatsApp</a>`;
-  if (_isAdmin) html += `<a class="nav-item nav-admin" data-route="admin" href="#admin"><span class="nav-ico">${ADMIN_ICO}</span>GPR Core</a>`;
+  let html = ABAS.map(a => `<a class="nav-item" data-route="${a.id}" href="#${a.id}" title="${esc(a.nome)}"><span class="nav-ico">${a.icone}</span><span class="nav-label">${esc(a.nome)}</span></a>`).join('');
+  if (_isOwner) html += `<a class="nav-item" data-route="equipe" href="#equipe" title="Equipe & WhatsApp"><span class="nav-ico">${EQUIPE_ICO}</span><span class="nav-label">Equipe & WhatsApp</span></a>`;
+  if (_isAdmin) html += `<a class="nav-item nav-admin" data-route="admin" href="#admin" title="GPR Core"><span class="nav-ico">${ADMIN_ICO}</span><span class="nav-label">GPR Core</span></a>`;
   navEl.innerHTML = html;
 }
 function currentRoute() {

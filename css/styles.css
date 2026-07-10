@@ -47,6 +47,20 @@ body {
 
 /* ---- Topbar / main ---- */
 #main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+/* Menu recolhido (só ícones) — desktop. Persistido em localStorage. */
+#layout.nav-collapsed #sidebar { width: 66px; flex-basis: 66px; }
+#layout.nav-collapsed #sidebar .brand-sub,
+#layout.nav-collapsed #sidebar .brand-title,
+#layout.nav-collapsed #sidebar .nav-label,
+#layout.nav-collapsed #sidebar .sidebar-foot .btn { display: none; }
+#layout.nav-collapsed #sidebar .brand { justify-content: center; padding-left: 0; padding-right: 0; }
+#layout.nav-collapsed #sidebar .nav-item { justify-content: center; padding-left: 0; padding-right: 0; gap: 0; }
+#layout.nav-collapsed #sidebar #btn-collapse { display: block; text-align: center; padding: 8px 0; }
+#layout.nav-collapsed #sidebar #btn-collapse::before { content: '»'; }
+#layout.nav-collapsed #sidebar #btn-collapse { font-size: 0; }
+#layout.nav-collapsed #sidebar #btn-collapse::before { font-size: 16px; }
+#sidebar #btn-collapse::before { content: ''; }
+@media (max-width: 900px) { #layout.nav-collapsed #sidebar { width: 256px; flex-basis: 256px; } #btn-collapse { display: none; } }
 #topbar {
   min-height: 60px; background: var(--surface); border-bottom: 1px solid var(--line);
   display: flex; align-items: center; gap: 12px; justify-content: space-between;
@@ -201,6 +215,13 @@ tr.st-ok > td { background: #f4fbf6; }
 .tbl-frozen::-webkit-scrollbar { height: 0; width: 10px; }
 .tbl-frozen::-webkit-scrollbar-thumb { background: var(--muted-2); border-radius: 5px; }
 .tbl-frozen::-webkit-scrollbar-track { background: transparent; }
+
+/* DRE/DFC: congela a 1ª coluna (categorias) + a linha de meses (thead). */
+.tbl-freeze1 { max-height: calc(100vh - 220px); overflow: auto; }
+.tbl-freeze1 thead th { position: sticky; top: 0; z-index: 3; }
+.tbl-freeze1 tbody td:first-child, .tbl-freeze1 thead th:first-child { position: sticky; left: 0; z-index: 2; box-shadow: 1px 0 0 var(--line); }
+.tbl-freeze1 thead th:first-child { z-index: 4; }
+.tbl-freeze1 .cat-row td:first-child { background: var(--surface); }   /* linhas especiais já têm fundo próprio na td */
 
 /* ---- Badges ---- */
 .badge { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 11.5px; font-weight: 600; white-space: nowrap; }
