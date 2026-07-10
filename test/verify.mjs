@@ -7,6 +7,7 @@ import {
 } from '../js/calc.js';
 import { expandirRecorrencia } from '../js/recurrence.js';
 import { anosDisponiveis, noPeriodo, anosSelecionados } from '../js/util.js';
+import { decideAccess } from '../js/access.js';
 
 const ano = 2026;
 const s = {
@@ -234,6 +235,41 @@ const ORDEM_MENU = [
 check('Menu: ordem dos ids inalterada', ABAS.map(a => a.id).join(',') === ORDEM_MENU.map(x => x[0]).join(','), `(${ABAS.map(a => a.id).join(',')})`);
 check('Menu: nomes inalterados', ABAS.map(a => a.nome).join('|') === ORDEM_MENU.map(x => x[1]).join('|'));
 check('Menu: Cadastro renomeado para Configurações', ABAS.find(a => a.id === 'cadastro')?.nome === 'Configurações');
+
+console.log('\n== ACESSO: LIBERAÇÃO GRÁTIS GERAL (decideAccess) ==');
+{
+  // admin → tudo
+  const adm = decideAccess({ isAdmin: true });
+  check('admin: acesso total', adm.admin === true && adm.readOnly === false && adm.planLimit === Infinity);
+
+  // SEM assinatura + free_signup ligado (padrão) → acesso total grátis
+  const novo = decideAccess({ isAdmin: false, sub: null, cfg: {} });
+  check('novo cadastro (padrão): grátis com acesso total', novo.demo === false && novo.readOnly === false && novo.plan === 'free' && novo.planLimit === 99 && novo.seatLimit === 1);
+
+  // SEM assinatura + free_signup DESLIGADO → volta ao demo (só-leitura)
+  const off = decideAccess({ isAdmin: false, sub: null, cfg: { free_signup: false } });
+  check('free_signup=false: novo cadastro cai em demo', off.demo === true && off.readOnly === true && off.planLimit === 0);
+
+  // free_signup ligado com limite de empresas customizado (seats fica fixo em 1 = teto do servidor)
+  const cust = decideAccess({ isAdmin: false, sub: null, cfg: { free_max_companies: 5, free_max_seats: 10 } });
+  check('grátis respeita empresas custom; seats travado no teto do servidor (1)', cust.planLimit === 5 && cust.seatLimit === 1 && cust.plan === 'free');
+
+  // assinante ATIVO com plano → limites do plano (inalterado, não vira "free")
+  const pago = decideAccess({ isAdmin: false, sub: { status: 'active', plan_code: 'A', plan: { max_companies: 3, max_seats: 2 } }, cfg: {} });
+  check('assinante ativo: limites do plano preservados', pago.readOnly === false && pago.plan === 'A' && pago.planLimit === 3 && pago.seatLimit === 2);
+
+  // CANCELADO + read_only → só-leitura (free_signup NÃO reabre quem cancelou)
+  const canc = decideAccess({ isAdmin: false, sub: { status: 'canceled', plan_code: 'A' }, cfg: { cancel_behavior: 'read_only', free_signup: true } });
+  check('cancelado (read_only): só-leitura, não vira grátis', canc.readOnly === true && canc.planLimit === 0 && canc.plan === 'A');
+
+  // CANCELADO + block → sem leitura, bloqueado
+  const blk = decideAccess({ isAdmin: false, sub: { status: 'canceled' }, cfg: { cancel_behavior: 'block' } });
+  check('cancelado (block): bloqueado', blk.readOnly === false && blk.planLimit === 0);
+
+  // PENDENTE + free_signup ligado → grátis
+  const pend = decideAccess({ isAdmin: false, sub: { status: 'pending' }, cfg: {} });
+  check('pendente (padrão): grátis com acesso', pend.demo === false && pend.readOnly === false && pend.plan === 'free');
+}
 
 console.log(`\n== RESULTADO: ${pass} passou, ${fail} falhou ==`);
 process.exit(fail ? 1 : 0);

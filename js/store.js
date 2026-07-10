@@ -10,7 +10,7 @@ const LS_KEY = 'mapa_financeiro_mvp_v2';
 let _scope = '';                                  // sufixo por usuário (isola o cache local)
 function lsKey() { return _scope ? (LS_KEY + '_' + _scope) : LS_KEY; }
 let _readOnly = false, _planLimit = Infinity, _demo = false;   // assinatura cancelada → só-leitura; demo = dados de exemplo (não persiste)
-export function setAccess(a = {}) { _readOnly = !!a.readOnly; _planLimit = (a.planLimit == null ? Infinity : a.planLimit); }
+export function setAccess(a = {}) { _readOnly = !!a.readOnly; _planLimit = (a.planLimit == null ? Infinity : a.planLimit); _demo = !!a.demo; }   // _demo SEMPRE reavaliado: sem isso, quem passou por enterDemo() ficava preso em demo (save() descartado) após novo login no mesmo carregamento (SPA)
 export function isReadOnly() { return _readOnly; }
 export function isDemo() { return _demo; }
 export function planInfo() { return { limit: _planLimit, count: (root.companies || []).length }; }
@@ -263,12 +263,15 @@ function aplicarRemoto(remote) {
 export async function initCloud() {
   if (!cloudEnabled()) return false;
   try {
+    // cloudLoad() agora LANÇA em falha de rede (só devolve null quando a linha REALMENTE não existe).
+    // Sem isso, um erro transitório virava "sem dados" e o cloudSave abaixo gravava a empresa em
+    // branco POR CIMA dos dados reais (perda de dados em device sem cache local). Erro → nada é gravado.
     const remote = await cloudLoad();
     if (remote && Array.isArray(remote.companies) && remote.companies.length) aplicarRemoto(remote);
-    else await cloudSave(root);
+    else await cloudSave(root);   // linha confirmadamente ausente (1º acesso) → semeia o estado inicial
     cloudSubscribe((remoteData) => { if (Date.now() - _lastLocalSave < 2000) return; aplicarRemoto(remoteData); });
     return true;
-  } catch (e) { console.warn('[cloud] init:', e); return false; }
+  } catch (e) { console.warn('[cloud] init (mantém local, não sobrescreve):', e); return false; }
 }
 export { cloudEnabled };
 

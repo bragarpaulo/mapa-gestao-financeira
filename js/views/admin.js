@@ -331,10 +331,23 @@ async function loadIa(body) {
 // ---- Configurações ----
 async function loadConfig(body) {
   const cfg = await cloud.adminGetConfig();
-  body.innerHTML = `<div class="grid grid-2">
+  const freeOn = cfg.free_signup !== false;   // ligado por padrão
+  body.innerHTML = `
+    <div class="sub-sec" style="background:var(--surface-2,rgba(0,0,0,.03));border-radius:10px;padding:12px 14px;margin-bottom:14px">
+      <label class="cfg-field cfg-check" style="font-weight:600"><input type="checkbox" id="cfg-free" ${freeOn ? 'checked' : ''}> 🆓 Liberar acesso grátis para todos</label>
+      <p class="hint" style="margin:6px 0 10px">Ligado: <b>todo cadastro sem assinatura paga entra com acesso total, de graça</b> (plano grátis). Ao <b>desligar</b> (voltar a cobrar), esses usuários — inclusive quem já usa no grátis — passam a ver só a <b>demonstração</b> até assinar. Assinantes pagos e admins não são afetados.</p>
+      <label class="cfg-field" style="max-width:260px">Empresas no plano grátis <input id="cfg-free-emp" type="number" min="1" value="${esc(cfg.free_max_companies || 99)}" style="width:90px"></label>
+    </div>
+    <div class="grid grid-2">
       <label class="cfg-field">Ao cancelar assinatura <select id="cfg-cancel"><option value="read_only" ${cfg.cancel_behavior === 'read_only' ? 'selected' : ''}>Somente leitura</option><option value="block" ${cfg.cancel_behavior === 'block' ? 'selected' : ''}>Bloquear acesso</option></select></label>
       <label class="cfg-field">Plano padrão (novo cliente) <input id="cfg-plano" type="text" value="${esc(cfg.plano_padrao || 'A')}" style="width:80px"></label>
     </div>
     <button class="btn btn-sm btn-primary" id="cfg-save" style="margin-top:12px">Salvar configurações</button>`;
-  body.querySelector('#cfg-save').onclick = async () => flash(body.querySelector('#cfg-save'), await cloud.adminSetConfig({ cancel_behavior: body.querySelector('#cfg-cancel').value, plano_padrao: body.querySelector('#cfg-plano').value }));
+  body.querySelector('#cfg-save').onclick = async () => flash(body.querySelector('#cfg-save'), await cloud.adminSetConfig({
+    ...cfg,   // preserva chaves que não editamos aqui
+    free_signup: body.querySelector('#cfg-free').checked,
+    free_max_companies: Number(body.querySelector('#cfg-free-emp').value) || 99,
+    cancel_behavior: body.querySelector('#cfg-cancel').value,
+    plano_padrao: body.querySelector('#cfg-plano').value,
+  }));
 }

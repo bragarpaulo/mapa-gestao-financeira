@@ -1,5 +1,7 @@
 // cloud.js — Supabase: Autenticação (email/senha) + dados ISOLADOS por usuário (tabela user_data, RLS).
 // A chave abaixo é a PÚBLICA (publishable/anon) — segura no navegador; quem protege os dados é a RLS.
+import { decideAccess, DEMO_ACCESS } from './access.js';
+
 export const SUPABASE_URL = 'https://qdioqeejcneijctotyft.supabase.co';
 export const SUPABASE_ANON_KEY = 'sb_publishable_v1Cfux-Urd6Jd2peZBtmEg_BPNc8s4L';
 
@@ -36,15 +38,16 @@ export async function updatePassword(newPassword) { const c = client(); if (!c) 
 export function onAuthChange(cb) { const c = client(); if (!c) return; c.auth.onAuthStateChange((event, session) => cb(event, session)); }
 
 // ---- Dados do usuário (user_data: 1 linha por usuário, blob do estado) ------
+// Retorna o estado do usuário, ou null SÓ quando a linha realmente não existe (1º acesso).
+// LANÇA em erro de rede/consulta — quem chama (initCloud) NÃO deve semear/sobrescrever nesse caso
+// (senão um blip de rede apaga os dados reais com uma empresa em branco). Ver initCloud.
 export async function cloudLoad() {
-  try {
-    const c = client(); if (!c) return null;
-    const u = await currentUser(); if (!u) return null;
-    const ownerId = (await getMeuDono()) || u.id;   // membro lê os dados do DONO da conta
-    const { data, error } = await c.from('user_data').select('data').eq('owner_id', ownerId).maybeSingle();
-    if (error) { console.warn('[cloud] load:', error.message); return null; }
-    return data ? data.data : null;
-  } catch (e) { console.warn('[cloud] load exc:', e); return null; }
+  const c = client(); if (!c) return null;
+  const u = await currentUser(); if (!u) return null;
+  const ownerId = (await getMeuDono()) || u.id;   // membro lê os dados do DONO da conta
+  const { data, error } = await c.from('user_data').select('data').eq('owner_id', ownerId).maybeSingle();
+  if (error) throw new Error('cloud load: ' + error.message);   // erro ≠ ausência → deixa initCloud manter o local
+  return data ? data.data : null;
 }
 export async function cloudSave(state) {
   try {
@@ -98,30 +101,25 @@ export async function updateProfile(patch) {
 
 // Acesso do usuário:
 //   admin → tudo. assinatura ATIVA → edita (limite do plano). assinatura CANCELADA → seus dados, só-leitura.
-//   SEM assinatura (nunca comprou) → modo DEMO (vê dados de exemplo, só-leitura; ao comprar com o mesmo e-mail vira completo).
+//   SEM assinatura / PENDENTE → se a liberação grátis geral (app_config.geral.free_signup, LIGADA por padrão)
+//     estiver ligada, entra com ACESSO TOTAL GRÁTIS; senão, modo DEMO (dados de exemplo, só-leitura).
+//   A regra de decisão vive em access.js (pura/testável); aqui só buscamos os dados que ela precisa.
 export async function getMyAccess(prof = null) {
-  const demo = { admin: false, demo: true, readOnly: true, planLimit: 0, seatLimit: 0, status: 'none', plan: null };
   try {
-    const c = client(); if (!c) return demo;
-    const u = await currentUser(); if (!u) return demo;
+    const c = client(); if (!c) return { ...DEMO_ACCESS };
+    const u = await currentUser(); if (!u) return { ...DEMO_ACCESS };
     if (!prof) prof = await getProfile();   // reusa o profile já buscado no boot (evita 1 round-trip)
-    if (prof && prof.is_admin) return { admin: true, demo: false, readOnly: false, planLimit: Infinity, seatLimit: Infinity, status: 'active', plan: null };
+    if (prof && prof.is_admin) return decideAccess({ isAdmin: true });
     const ownerId = (await getMeuDono()) || u.id;   // membro herda a assinatura do DONO da conta
     const { data: sub } = await c.from('subscriptions').select('plan_code,status').eq('owner_id', ownerId).maybeSingle();
-    if (!sub) return demo;   // nunca assinou → demo
-    const status = sub.status || 'pending';
-    const ativo = ['active', 'trialing'].includes(status);
-    if (ativo) {
-      let planLimit = 1, seatLimit = 1;   // active sem plano definido → limites padrão 1 (alinha com o banco)
-      if (sub.plan_code) { const { data: pl } = await c.from('plans').select('max_companies,max_seats').eq('code', sub.plan_code).maybeSingle(); if (pl) { planLimit = pl.max_companies; seatLimit = pl.max_seats; } }
-      return { admin: false, demo: false, readOnly: false, planLimit, seatLimit, status, plan: sub.plan_code };
-    }
-    // pending/canceled/past_due → tem registro mas não está ativo
-    const { data: cfg } = await c.from('app_config').select('value').eq('key', 'geral').maybeSingle();
-    const cancelBehavior = (cfg && cfg.value && cfg.value.cancel_behavior) || 'read_only';
-    if (['canceled', 'past_due'].includes(status)) return { admin: false, demo: false, readOnly: cancelBehavior === 'read_only', planLimit: 0, status, plan: sub.plan_code };
-    return demo;   // pending → ainda em demo
-  } catch (e) { return demo; }
+    const ativo = sub && ['active', 'trialing'].includes(sub.status || 'pending');
+    // Plano só é necessário p/ assinante ATIVO (limites do plano). Grátis/cancelado não consultam `plans`.
+    if (ativo && sub.plan_code) { const { data: pl } = await c.from('plans').select('max_companies,max_seats').eq('code', sub.plan_code).maybeSingle(); if (pl) sub.plan = pl; }
+    // Config (free_signup + cancel_behavior) só é necessária quando NÃO está ativo — preserva o nº de queries do assinante pago.
+    let cfg = {};
+    if (!ativo) { const { data: row } = await c.from('app_config').select('value').eq('key', 'geral').maybeSingle(); cfg = (row && row.value) || {}; }
+    return decideAccess({ isAdmin: false, sub, cfg });
+  } catch (e) { return { ...DEMO_ACCESS }; }
 }
 
 // ---- GPR Core (admin) — RLS garante que só admin lê/escreve ------------------

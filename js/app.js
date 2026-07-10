@@ -210,7 +210,12 @@ function buildNav() {
 }
 function currentRoute() {
   const h = (location.hash || '').replace('#', '');
-  return VIEWS[h] ? h : 'inicio';
+  if (!VIEWS[h]) return 'inicio';
+  // Segurança: rotas privilegiadas não podem ser abertas digitando o hash na URL.
+  // O gate real dos DADOS é a RLS no Supabase; isto evita renderizar a TELA a quem não é do público.
+  if (h === 'admin' && !_isAdmin) return 'inicio';
+  if (h === 'equipe' && !_isOwner) return 'inicio';
+  return h;
 }
 // Barra de rolagem horizontal "fixa no rodapé da janela" p/ tabelas largas: scrollbar CUSTOMIZADO
 // (trilho .hbar + polegar .hthumb) — sempre visível (o overlay nativo do macOS some quando parado).
