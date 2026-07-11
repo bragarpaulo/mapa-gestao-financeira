@@ -369,8 +369,12 @@ export function calcDashboard(s) {
   const aVista = vd.reduce((a, v) => a + (inSel(v.mesVenda) ? num(v.valorAVista) : 0), 0);
   const aPrazo = receita - aVista;
 
-  const recebimentos = pick(fluxo.entradas);
-  const pagamentos = pick(fluxo.saidas);
+  // CAIXA REALIZADO NÃO SOFRE O CORTE DE COMPETÊNCIA: recebimento/pagamento com data preenchida
+  // ACONTECEU — conta no total mesmo registrado num mês à frente do atual ("Todos" = ano inteiro).
+  // Só a seleção EXPLÍCITA de meses filtra o caixa. (O corte segue valendo p/ receita/despesa/lucro.)
+  const pickCx = (arr) => (selExplicita ? meses : todos).reduce((a, i) => a + (typeof arr[i] === 'number' ? arr[i] : 0), 0);
+  const recebimentos = pickCx(fluxo.entradas);
+  const pagamentos = pickCx(fluxo.saidas);
   const geracaoCaixa = recebimentos - pagamentos;
   const saldoAtual = fluxo.saldoConta[idxRef];
 

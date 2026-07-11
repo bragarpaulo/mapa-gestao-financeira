@@ -258,6 +258,32 @@ console.log('\n== CAIXA: ENTRADA PELO MÊS DO RECEBIMENTO REAL (não do vencimen
   check('em aberto: previsão segue no mês do vencimento (jan)', (f2.entradasPrev[0] + f2.entradasAVencer[0]) > 0 || f2.entradasPrev[0] === 7000, `(prevJan=${f2.entradasPrev[0]})`);
 }
 
+console.log('\n== CAIXA: REALIZADO NÃO SOFRE O CORTE DE COMPETÊNCIA (3×5k → 15k no "Todos") ==');
+{
+  const dHoje = new Date();
+  const Y = dHoje.getFullYear();
+  const mesAtual = dHoje.getMonth();               // 0-based
+  if (mesAtual <= 9) {                             // precisa de um mês futuro no ano (até out)
+    const mm = (i) => String(i + 1).padStart(2, '0');
+    const mkVenda = (id, mesIdx, valor) => ({ id, dataVenda: `${Y}-01-05`, dataVencimento: `${Y}-${mm(mesIdx)}-05`, dataRecebimento: `${Y}-${mm(mesIdx)}-05`, valor, canalId: '', categoriaReceitaId: 'rec_bruta', contaId: 'c1', pedido: '', produto: '', cliente: '', parcela: '', obs: '' });
+    const mesFuturo = Math.min(mesAtual + 2, 11);
+    const sCx = {
+      ...s,
+      ui: { anoAtivo: Y, anosSel: [Y], periodoMeses: [] },   // "Todos"
+      contas: [{ id: 'c1', nome: 'Banco', tipo: 'Conta Corrente', saldo: 0, dataBase: '' }],
+      vendas: [mkVenda('p1', mesAtual, 5000), mkVenda('p2', mesAtual, 5000), mkVenda('p3', mesFuturo, 5000)],   // 2 recebidas no mês atual + 1 registrada num mês À FRENTE
+      despesas: [{ id: 'dp1', dataVencimento: `${Y}-${mm(mesFuturo)}-10`, mesCompetencia: `jan/${Y}`, categoriaId: s.categorias[0].id, valor: 2000, dataPagamentoReal: `${Y}-${mm(mesFuturo)}-10`, contaId: 'c1', descricao: '', fornecedor: '', formaPagamento: 'PIX', obs: '' }],
+    };
+    const d = calcDashboard(sCx);
+    check('Recebimentos ("Todos") = 15.000 (inclui a parcela registrada à frente)', d.recebimentos === 15000, `(${d.recebimentos})`);
+    check('Pagamentos ("Todos") incluem o pago registrado à frente (2.000)', d.pagamentos === 2000, `(${d.pagamentos})`);
+    check('Caixa Gerado = 13.000', d.geracaoCaixa === 13000, `(${d.geracaoCaixa})`);
+    // seleção EXPLÍCITA de mês continua filtrando o caixa
+    const dMes = calcDashboard({ ...sCx, ui: { ...sCx.ui, periodoMeses: [mesAtual] } });
+    check('mês explícito: só o recebido naquele mês (10.000)', dMes.recebimentos === 10000, `(${dMes.recebimentos})`);
+  } else { console.log('  (pulado: sem mês futuro disponível no ano)'); }
+}
+
 console.log('\n== CAIXA: SALDO ANCORADO NA DATA-BASE (cenário do Paulo: 100k hoje ≠ 152k) ==');
 {
   const dHoje = new Date();
