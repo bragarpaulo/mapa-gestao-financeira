@@ -1,10 +1,11 @@
 // import.js — MODELO ÚNICO de planilha (.xlsx) para download + importação (SheetJS / XLSX global).
 // A planilha traz tudo: Empresa, Contas, Canais e Metas, Categorias, Vendas e Despesas.
 // Ao importar, o sistema CRIA UMA EMPRESA NOVA com os dados (não mexe nas existentes).
-import { update, uid, addEmpresaVazia, getState, getCompaniesFull } from './store.js';
-import { FORMAS_PAGAMENTO, MESES, GRUPOS } from './config.js';
+import { update, uid, addEmpresaVazia, getState, getCompaniesFull, getCompanies, setActiveEmpresa, resetDadosEmpresa } from './store.js';
+import { FORMAS_PAGAMENTO, MESES, GRUPOS, DEFAULT_CATEGORIES, DEFAULT_RECEITA_CATEGORIES } from './config.js';
 import { num } from './util.js';
 import { ensureXlsx } from './lazylibs.js';
+import { openChoicePopover } from './ui.js';
 
 const MES_COL = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
 
@@ -30,22 +31,29 @@ const GRUPO_ALIAS = {
 };
 function grupoId(nome) { const n = norm(nome); if (!n) return 'operacionais'; return GRUPO_ALIAS[n] || (GRUPOS.find(g => norm(g.titulo) === n || g.id === n)?.id) || 'operacionais'; }
 
-// ---- Modelo para download -----------------------------------------------
-// O modelo é um arquivo .xlsx pronto no servidor (com dados de exemplo reais e as colunas
-// OBRIGATÓRIAS — Data e Valor — em negrito). Aqui só baixamos esse arquivo.
-const MODELO_URL = 'modelo-importacao-GPR.xlsx';
-const MODELO_NOME = 'P4 Gestão 2026.xlsx';   // vira o nome da empresa ao importar
-export function baixarModelo() {
-  fetch(MODELO_URL, { cache: 'no-store' })
-    .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.blob(); })
-    .then(blob => {
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url; a.download = MODELO_NOME;
-      document.body.appendChild(a); a.click(); a.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 1500);
-    })
-    .catch(err => alert('Não foi possível baixar o modelo: ' + ((err && err.message) || err)));
+// ---- Modelo para download (gerado por código, MESMO formato do export Excel) ----------
+// 7 abas (Empresa, Contas, Canais e Metas, Categorias, Orçamento, Vendas, Despesas), cada uma
+// com 1 linha de EXEMPLO (+ as categorias padrão) só p/ dar ideia de como preencher. Reimportável.
+export async function baixarModelo() {
+  try { await ensureXlsx(); } catch (e) {}
+  if (!libOk()) { alert('Biblioteca de planilha não carregou (sem internet?).'); return; }
+  const ano = new Date().getFullYear();
+  const meta = Array(12).fill(0); meta[0] = 5000;
+  const orc = Array(12).fill(0); orc[0] = 1200;
+  const catEx = DEFAULT_CATEGORIES[0] || { id: 'cat_ex', nome: 'Despesa (exemplo)', grupo: 'operacionais' };
+  const recEx = DEFAULT_RECEITA_CATEGORIES[0] || { id: 'rec_bruta', nome: 'Receita Bruta (Faturamento)' };
+  const exemplo = {
+    empresa: { nome: 'Minha Empresa (exemplo)', cnpj: '', dataInicio: '', anos: [ano] },
+    contas: [{ id: 'c_ex', nome: 'Conta Corrente', tipo: 'Conta Corrente', saldo: 1000, dataBase: `${ano}-01-01` }],
+    canais: [{ id: 'ch_ex', nome: 'Instagram', metas: { [ano]: meta } }],
+    categorias: DEFAULT_CATEGORIES.map(c => ({ ...c })),
+    receitaCategorias: DEFAULT_RECEITA_CATEGORIES.map(c => ({ ...c })),
+    orcamento: { [ano]: { [catEx.id]: orc } },
+    vendas: [{ id: 'v_ex', dataVenda: `${ano}-01-05`, pedido: '1001', canalId: 'ch_ex', categoriaReceitaId: recEx.id, produto: 'Produto A (exemplo)', cliente: 'Cliente A (exemplo)', parcela: '', valor: 2500, dataVencimento: `${ano}-01-05`, dataRecebimento: `${ano}-01-05`, contaId: 'c_ex', obs: 'Exemplo — apague e preencha com os seus dados' }],
+    despesas: [{ id: 'd_ex', dataVencimento: `${ano}-01-10`, mesCompetencia: `Jan/${ano}`, descricao: 'Aluguel (exemplo)', categoriaId: catEx.id, valor: 1200, fornecedor: 'Fornecedor A (exemplo)', contaId: 'c_ex', formaPagamento: 'PIX', dataPagamentoReal: `${ano}-01-10`, obs: 'Exemplo — apague e preencha com os seus dados' }],
+  };
+  try { _baixarWb(_wbEmpresa(exemplo), 'Modelo GPR'); }
+  catch (err) { alert('Não foi possível gerar o modelo: ' + ((err && err.message) || err)); }
 }
 
 // ---- Exportar Excel (empresa ATIVA) — mesmas abas/colunas do importador (round-trip) ----
@@ -135,7 +143,7 @@ export async function importarArquivo(file, cb) {
     // Nome da empresa + ano primário (menor ano das datas dos lançamentos).
     const emp = rowsEmp[0] || {};
     const empKm = keymapDe(emp);
-    const nomeEmp = String(vAl(emp, empKm, 'Nome da empresa', 'Nome', 'Empresa') || '').trim()
+    let nomeEmp = String(vAl(emp, empKm, 'Nome da empresa', 'Nome', 'Empresa') || '').trim()
       || file.name.replace(/\.[^.]+$/, '') || 'Empresa importada';
     const anos = new Set();
     const colYear = (rows, ...names) => rows.forEach(r => { const km = keymapDe(r); for (const n of names) { const iso = parseData(vAl(r, km, n)); if (iso) anos.add(Number(iso.slice(0, 4))); } });
@@ -143,16 +151,21 @@ export async function importarArquivo(file, cb) {
     colYear(rowsD, 'Data de Vencimento', 'Pago em');
     const primaryAno = anos.size ? Math.min(...anos) : new Date().getFullYear();
 
-    if (!confirm(`Criar a empresa "${nomeEmp}" e importar os dados da planilha?`)) return;
+    // Preenche a empresa certa conforme o modo escolhido no diálogo (nova / substituir / adicionar).
+    let resumo;
+    const aplicar = (modo, empresaId) => {
+     try {
+      resumo = { empresa: nomeEmp, modo, vendas: 0, despesas: 0, anos: new Set(anos), canais: 0, contas: 0, fornecedores: 0, categorias: 0 };
+      if (modo === 'nova') { addEmpresaVazia(nomeEmp, primaryAno); }   // cria e ATIVA a empresa nova (com categorias padrão)
+      else { setActiveEmpresa(empresaId); if (modo === 'substituir') resetDadosEmpresa(empresaId); resumo.empresa = (getCompanies().find(c => c.id === empresaId) || {}).nome || nomeEmp; }
 
-    const resumo = { empresa: nomeEmp, vendas: 0, despesas: 0, anos: new Set(anos), canais: 0, contas: 0, fornecedores: 0, categorias: 0 };
-    addEmpresaVazia(nomeEmp, primaryAno);   // cria e ativa a empresa nova (com categorias padrão)
-
-    update(s => {
-      // Empresa
-      s.empresa.nome = nomeEmp;
-      s.empresa.cnpj = String(vAl(emp, empKm, 'CNPJ') || '');
-      const ini = parseData(vAl(emp, empKm, 'Data de início (dd/mm/aaaa)', 'Data de início', 'Data de inicio')); if (ini) s.empresa.dataInicio = ini;
+      update(s => {
+      // Identidade da empresa: SÓ no modo NOVA (substituir/adicionar preservam a empresa escolhida).
+      if (modo === 'nova') {
+        s.empresa.nome = nomeEmp;
+        s.empresa.cnpj = String(vAl(emp, empKm, 'CNPJ') || '');
+        const ini = parseData(vAl(emp, empKm, 'Data de início (dd/mm/aaaa)', 'Data de início', 'Data de inicio')); if (ini) s.empresa.dataInicio = ini;
+      }
 
       // Contas (com saldo + data-base)
       const upsertConta = (nome, tipo, saldo, dataBase) => {
@@ -241,11 +254,31 @@ export async function importarArquivo(file, cb) {
 
       // Mostra os dados importados: ano primário + TODOS os meses (senão cairia no mês vigente e pareceria vazio).
       s.ui.anosSel = [primaryAno]; s.ui.anoAtivo = primaryAno; s.ui.periodoMeses = [];
-    });
+      });
+      resumo.anos = [...resumo.anos].sort();
+      cb && cb(resumo);
+     } catch (err) { alert('Erro ao importar a planilha: ' + ((err && err.message) || err)); console.error('[import] falha ao processar:', err); }
+    };
 
-    resumo.anos = [...resumo.anos].sort();
-    cb && cb(resumo);
-    } catch (err) { alert('Erro ao importar a planilha: ' + ((err && err.message) || err)); console.error('[import] falha ao processar:', err); }
+    // Diálogo: SEMPRE pergunta o modo e, p/ substituir/adicionar, qual empresa.
+    const anchor = document.querySelector('[data-action="importar"]') || document.body;
+    const pedirConfirmacao = (modo, id, nome) => {
+      if (modo === 'substituir' && !confirm(`Isso vai APAGAR os dados atuais de "${nome}" e substituí-los pelos da planilha. Continuar?`)) return;
+      aplicar(modo, id);
+    };
+    const abrirEmpresas = (modo) => {
+      const comps = getCompanies();
+      if (comps.length === 1) return pedirConfirmacao(modo, comps[0].id, comps[0].nome);
+      openChoicePopover(anchor, modo === 'substituir' ? 'Substituir os dados de qual empresa?' : 'Adicionar os dados a qual empresa?',
+        comps.map(c => ({ label: c.nome || '(sem nome)', cls: modo === 'substituir' ? 'danger' : '', run: () => pedirConfirmacao(modo, c.id, c.nome) })).concat([{ label: 'Cancelar' }]));
+    };
+    openChoicePopover(anchor, 'O que fazer com esta planilha?', [
+      { label: '🆕 Criar uma empresa nova', run: () => { const nm = prompt('Nome da nova empresa:', nomeEmp); if (nm === null) return; if (nm.trim()) nomeEmp = nm.trim(); aplicar('nova', null); } },
+      { label: '♻️ Substituir os dados de uma empresa', cls: 'danger', run: () => abrirEmpresas('substituir') },
+      { label: '➕ Adicionar os dados a uma empresa', run: () => abrirEmpresas('adicionar') },
+      { label: 'Cancelar' },
+    ]);
+    } catch (err) { alert('Não foi possível processar a planilha: ' + ((err && err.message) || err)); console.error('[import] parse:', err); }
   };
   reader.readAsArrayBuffer(file);
 }

@@ -326,6 +326,15 @@ export function removerEmpresa(id) {
   if (!root.companies.find(c => c.id === root.activeId)) root.activeId = root.companies[0].id;
   save(); emit();
 }
+// Zera os DADOS de UMA empresa (mantém identidade: id/nome/cnpj/dataInicio/anos). P/ o modo "substituir" do import.
+export function resetDadosEmpresa(id) {
+  const c = root.companies.find(x => x.id === id); if (!c) return;
+  c.vendas = []; c.despesas = []; c.contas = []; c.canais = [];
+  c.categorias = freshCategorias(); c.receitaCategorias = freshReceitaCats();
+  c.orcamento = {}; c.clientes = []; c.produtos = []; c.fornecedores = [];
+  c.plataformas = { disponiveis: [], aReceber: [] };
+  save(); emit();
+}
 // Restaurar demo: descarta TUDO e recria a única "Empresa Demonstrativa", no período vigente.
 export function resetDemo() { root = demoRoot(); aplicarVigente(active()); save(); flushCloud(); emit(); }
 // Limpar tudo: apaga TODAS as empresas e dados, deixando uma única empresa em branco.

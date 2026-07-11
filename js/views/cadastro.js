@@ -156,7 +156,7 @@ export function render(container) {
 
     <details class="card card-pad cad-section cad-import">
       <summary>📥 Importar dados por planilha</summary>
-      <div class="hint" style="margin:6px 0 10px">Baixe o modelo e preencha <strong>Vendas</strong> e <strong>Despesas</strong>. Obrigatório apenas <strong>Data</strong> e <strong>Valor</strong> (em negrito no modelo) — o resto é opcional e você preenche depois aqui no app. Ao importar, é criada uma <strong>empresa nova</strong> (o nome vem do nome do arquivo); contas, categorias, clientes, produtos e recebedores são criados automaticamente.</div>
+      <div class="hint" style="margin:6px 0 10px">Baixe o modelo (já vem com <strong>1 linha de exemplo</strong> em cada aba) e preencha. Obrigatório apenas <strong>Data</strong> e <strong>Valor</strong> nas Vendas/Despesas — o resto é opcional. Ao importar, o sistema <strong>pergunta o que fazer</strong>: criar uma <strong>empresa nova</strong>, <strong>substituir</strong> os dados de uma empresa, ou <strong>adicionar</strong> os dados a uma empresa. Contas, categorias, clientes, produtos e recebedores são criados automaticamente.</div>
       <div class="card-head-actions">
         <button class="btn btn-sm" data-action="baixar-modelo">⬇ Baixar modelo</button>
         <button class="btn btn-primary btn-sm" data-action="importar">📥 Importar planilha preenchida</button>
@@ -220,7 +220,7 @@ function wire(container, ano) {
   container.addEventListener('change', (ev) => {
     const t = ev.target;
     if (t.id === 'import-file') {
-      if (t.files && t.files[0]) importarArquivo(t.files[0], (r) => { alert(`Empresa "${r.empresa}" criada!\n\n${r.vendas} venda(s) e ${r.despesas} despesa(s).\nAnos: ${r.anos.join(', ') || '—'}\nCriados: ${r.canais} canal(is), ${r.contas} conta(s), ${r.fornecedores} recebedor(es), ${r.categorias} categoria(s).`); location.hash = '#dashboard'; });
+      if (t.files && t.files[0]) importarArquivo(t.files[0], (r) => { const cab = r.modo === 'substituir' ? `Dados de "${r.empresa}" substituídos!` : r.modo === 'adicionar' ? `Dados adicionados a "${r.empresa}"!` : `Empresa "${r.empresa}" criada!`; alert(`${cab}\n\n${r.vendas} venda(s) e ${r.despesas} despesa(s).\nAnos: ${r.anos.join(', ') || '—'}\nCriados: ${r.canais} canal(is), ${r.contas} conta(s), ${r.fornecedores} recebedor(es), ${r.categorias} categoria(s).`); location.hash = '#dashboard'; });
       t.value = '';
       return;
     }
