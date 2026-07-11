@@ -556,13 +556,6 @@ window.__store = store;
 window.__import = importmod;
 window.__cloud = cloud;
 
-document.getElementById('btn-tema').addEventListener('click', toggleTema);
-document.getElementById('btn-limpar').addEventListener('click', () => { if (confirm('Apagar TODAS as empresas e dados e começar do zero?')) clearAll(); });
+// Rodapé da barra: só Recolher + Sair. "Limpar tudo" e "Sair e limpar dispositivo" migraram p/
+// Configurações (cadastro.js). Tema fica no topo (topbar). btn-collapse é ligado mais acima.
 document.getElementById('btn-sair').addEventListener('click', async () => { if (confirm('Sair da conta?')) { await cloud.signOut(); } });
-document.getElementById('btn-sair-limpar').addEventListener('click', async () => {
-  if (!confirm('Sair e APAGAR o cache deste navegador?\n\nSeus dados na nuvem continuam salvos — ao entrar de novo, tudo volta. Use em máquina compartilhada.')) return;
-  store.flushLocal();                 // garante que o último estado subiu antes de apagar o local
-  await cloud.signOut();
-  store.limparCacheLocal();
-  location.reload();
-});

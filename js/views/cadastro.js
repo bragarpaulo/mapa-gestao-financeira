@@ -11,7 +11,9 @@ import {
   addProduto, renomearProduto, removerProduto, removerProdutos,
   addAno, removerAno, setAnoAtivo, GRUPOS,
   exportarBackup, restaurarBackup, isAggregated, getSelectedIds, getCompanies, empresaCor,
+  clearAll, limparCacheLocal, flushLocal,
 } from '../store.js';
+import * as cloud from '../cloud.js';
 import { TIPOS_CONTA, MESES } from '../config.js';
 import { pageHead, options, moneyInput } from '../ui.js';
 import { esc, num, fmtBRL0, anoAtivo, metaArr } from '../util.js';
@@ -170,7 +172,15 @@ export function render(container) {
         <button class="btn btn-sm" data-action="restaurar-backup">⬆ Restaurar backup</button>
         <input type="file" id="backup-file" accept=".json,application/json" style="display:none">
       </div>
-    </details>`;
+    </details>
+
+    <div class="card card-pad cad-section">
+      ${sectionHead('🔐 Conta e dispositivo', { sub: 'Ações da sua conta e deste navegador.' })}
+      <div class="card-head-actions">
+        <button class="btn btn-sm" data-action="sair-limpar" title="Sai e apaga o cache deste navegador (máquina compartilhada). Seus dados na nuvem ficam salvos.">🔒 Sair e limpar dispositivo</button>
+        <button class="btn btn-sm danger" data-action="limpar-tudo" title="Apaga TODAS as empresas e dados e começa do zero">🗑 Limpar tudo</button>
+      </div>
+    </div>`;
 
   wire(container, ano);
 }
@@ -289,6 +299,12 @@ function wire(container, ano) {
       else if (sel === 'produtos') removerProdutos(ids);
       else if (sel === 'fornecedores') removerFornecedores(ids);
       else if (sel.startsWith('cat')) removerCategorias(ids);
+    }
+    else if (action === 'limpar-tudo') { if (confirm('Apagar TODAS as empresas e dados e começar do zero?\n\nEsta ação não pode ser desfeita.')) clearAll(); }
+    else if (action === 'sair-limpar') {
+      if (!confirm('Sair e APAGAR o cache deste navegador?\n\nSeus dados na nuvem continuam salvos — ao entrar de novo, tudo volta. Use em máquina compartilhada.')) return;
+      flushLocal();                                   // sobe o último estado antes de apagar o local
+      cloud.signOut().then(() => { limparCacheLocal(); location.reload(); });
     }
   });
 
