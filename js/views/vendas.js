@@ -22,7 +22,6 @@ function rowErro(id) {
 }
 const sortKey = (l, c) => c === 'valor' ? num(l.valor) : String(l[c] || '');
 const dataValida = (iso) => { const m = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{2})$/); return !!m && +m[1] >= 1900 && +m[1] <= 2999 && +m[2] >= 1 && +m[2] <= 12 && +m[3] >= 1 && +m[3] <= 31; };
-const ultimoDiaAno = (ano) => `${ano}-12-31`;
 
 // HTML de UMA linha (v = venda já derivada). Células derivadas marcadas com data-cell.
 function rowHtml(v, s) {
@@ -236,7 +235,7 @@ function wire(container) {
     if (recBtn) {
       const venda = getState().vendas.find(x => x.id === recBtn.dataset.rec);
       if (!venda || !(venda.dataVencimento || venda.dataVenda)) { alert('Preencha a data desta linha antes de repetir.'); return; }
-      openRecPopover(recBtn, { periodo: venda.recorrenciaPeriodo, dataFim: venda.recorrenciaFim || ultimoDiaAno((venda.dataVenda || '').slice(0, 4) || new Date().getFullYear()) }, (periodo, fim) => aplicarRecorrenciaVenda(venda.id, periodo, fim));
+      openRecPopover(recBtn, { periodo: venda.recorrenciaPeriodo, dataFim: venda.recorrenciaFim || '', dataInicio: venda.dataVencimento || venda.dataVenda }, (periodo, fim) => aplicarRecorrenciaVenda(venda.id, periodo, fim));
       return;
     }
     const th = ev.target.closest('th[data-sortcol]'); if (th) { setVendasSort(th.dataset.sortcol); return; }

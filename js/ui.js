@@ -1,6 +1,6 @@
 // ui.js — helpers de UI compartilhados pelas views (HTML em string + componentes).
 import { MESES, STATUS_VENDA, STATUS_DESPESA, PERIODOS_RECORRENCIA } from './config.js';
-import { esc, fmtBRL, fmtBRL0, fmtPct, num, norm } from './util.js';
+import { esc, fmtBRL, fmtBRL0, fmtPct, num, norm, addMeses } from './util.js';
 import { ensureExportLibs } from './lazylibs.js';
 
 const _moneyFmt = new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -198,22 +198,50 @@ export function openRecPopover(anchor, defaults, onConfirm) {
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape') _recPop.style.display = 'none'; });
   }
   const pop = _recPop;
+  const passoDe = (id) => (PERIODOS_RECORRENCIA.find(p => p.id === id) || {}).meses || 1;
+  const dataInicio = String(defaults.dataInicio || '').slice(0, 10);   // 1º vencimento (a linha atual = parcela 1)
+  // Default do nº de parcelas: derivado do fim já salvo (re-abrir mostra o valor atual); senão 12.
+  let nDefault = 12;
+  if (dataInicio && /^\d{4}-\d{2}-\d{2}$/.test(String(defaults.dataFim || ''))) {
+    const [y0, m0] = dataInicio.split('-').map(Number), [y1, m1] = defaults.dataFim.split('-').map(Number);
+    const meses = (y1 - y0) * 12 + (m1 - m0);
+    if (meses >= 0) nDefault = Math.max(1, Math.floor(meses / passoDe(defaults.periodo || 'mensal')) + 1);
+  }
   const opts = PERIODOS_RECORRENCIA.map(p => `<option value="${p.id}" ${p.id === (defaults.periodo || 'mensal') ? 'selected' : ''}>${esc(p.nome)}</option>`).join('');
   pop.innerHTML = `
     <div class="rec-pop-title">🔁 Repetir lançamento</div>
     <label class="rec-pop-f">Periodicidade<select class="rec-per">${opts}</select></label>
-    <label class="rec-pop-f">Repetir até<input type="date" class="rec-fim" value="${esc(defaults.dataFim || '')}"></label>
+    <label class="rec-pop-f">Nº total de parcelas<input type="number" class="rec-n" min="1" max="120" step="1" value="${nDefault}" inputmode="numeric"></label>
+    <div class="rec-pop-hint hint"></div>
     <div class="rec-pop-actions"><button type="button" class="rec-cancel">Cancelar</button><button type="button" class="btn-primary rec-ok">Gerar</button></div>`;
   pop.style.display = 'block';
   const r = anchor.getBoundingClientRect();
   pop.style.left = Math.min(r.left + window.scrollX, window.scrollX + document.documentElement.clientWidth - 280) + 'px';
   pop.style.top = (r.bottom + window.scrollY + 4) + 'px';
+  // Prévia ao vivo: data da última parcela (esta linha conta como a 1ª).
+  const fimDe = () => {
+    const n = Math.floor(Number(pop.querySelector('.rec-n').value));
+    if (!dataInicio || !n || n < 1) return '';
+    return addMeses(dataInicio, passoDe(pop.querySelector('.rec-per').value) * (n - 1));
+  };
+  const atualizaHint = () => {
+    const fim = fimDe();
+    const n = Math.floor(Number(pop.querySelector('.rec-n').value));
+    pop.querySelector('.rec-pop-hint').textContent = fim && n >= 1
+      ? (n === 1 ? 'Só esta parcela (nada a gerar).' : `Esta linha é a 1ª parcela · última em ${fim.split('-').reverse().join('/')}`)
+      : '';
+  };
+  pop.querySelector('.rec-n').oninput = atualizaHint;
+  pop.querySelector('.rec-per').onchange = atualizaHint;
+  atualizaHint();
   pop.querySelector('.rec-cancel').onclick = () => { pop.style.display = 'none'; };
   pop.querySelector('.rec-ok').onclick = () => {
     const periodo = pop.querySelector('.rec-per').value;
-    const dataFim = pop.querySelector('.rec-fim').value;
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(dataFim)) { alert('Escolha a data final (até quando repetir).'); return; }
-    pop.style.display = 'none'; onConfirm(periodo, dataFim);
+    const n = Math.floor(Number(pop.querySelector('.rec-n').value));
+    if (!n || n < 1 || n > 120) { alert('Informe o número total de parcelas (1 a 120).'); return; }
+    if (!dataInicio) { alert('Preencha a data de vencimento da linha antes de repetir.'); return; }
+    if (n === 1) { pop.style.display = 'none'; return; }   // 1 parcela = a própria linha, nada a gerar
+    pop.style.display = 'none'; onConfirm(periodo, fimDe());
   };
 }
 

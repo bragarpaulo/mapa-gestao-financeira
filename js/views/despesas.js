@@ -26,7 +26,6 @@ function sortKey(l, campo) {
   return String(l[campo] || '');
 }
 const dataValida = (iso) => { const m = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{2})$/); return !!m && +m[1] >= 1900 && +m[1] <= 2999 && +m[2] >= 1 && +m[2] <= 12 && +m[3] >= 1 && +m[3] <= 31; };
-const ultimoDiaAno = (ano) => `${ano}-12-31`;
 function noPeriodoComp(comp, anos, meses) {
   const [mm, yy] = String(comp || '').split('/'); const mi = MESES.indexOf(mm); const y = Number(yy);
   if (!y) return false;
@@ -253,7 +252,7 @@ function wire(container, compOpts) {
     if (recBtn) {
       const desp = getState().despesas.find(x => x.id === recBtn.dataset.rec);
       if (!desp || !desp.dataVencimento) { alert('Preencha o vencimento desta linha antes de repetir.'); return; }
-      openRecPopover(recBtn, { periodo: desp.recorrenciaPeriodo, dataFim: desp.recorrenciaFim || ultimoDiaAno(desp.dataVencimento.slice(0, 4)) }, (periodo, fim) => aplicarRecorrenciaDespesa(desp.id, periodo, fim));
+      openRecPopover(recBtn, { periodo: desp.recorrenciaPeriodo, dataFim: desp.recorrenciaFim || '', dataInicio: desp.dataVencimento }, (periodo, fim) => aplicarRecorrenciaDespesa(desp.id, periodo, fim));
       return;
     }
     const th = ev.target.closest('th[data-sortcol]'); if (th) { setDespesasSort(th.dataset.sortcol); return; }
