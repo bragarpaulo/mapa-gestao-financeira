@@ -585,7 +585,7 @@ export function removerContas(ids) { const set = new Set(ids); update(s => { s.c
 export function reordenarContas(fromId, toId) { update(s => moveById(s.contas, fromId, toId)); }
 
 // ---- Empresa / Orçamento / Plataformas / UI ------------------------------
-export function setEmpresaCampo(campo, valor) { update(s => { s.empresa[campo] = valor; }); }
+export function setEmpresaCampo(campo, valor, opts) { update(s => { s.empresa[campo] = valor; }, opts); }
 export function setOrcamento(ano, catId, mesIdx, valor, opts) { update(s => { if (!s.orcamento[ano]) s.orcamento[ano] = {}; if (!Array.isArray(s.orcamento[ano][catId])) s.orcamento[ano][catId] = Array(12).fill(0); s.orcamento[ano][catId][mesIdx] = valor; }, opts); }
 export function setPeriodoMeses(arr) { updateUI(s => { s.ui.periodoMeses = Array.from(arr).map(Number); }); }
 export function setUiCampo(campo, valor) { updateUI(s => { s.ui[campo] = valor; }); }

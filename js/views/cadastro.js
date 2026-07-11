@@ -242,7 +242,9 @@ function wire(container, ano) {
     // Edições NÃO re-renderizam (silent): a tabela larga de metas não volta ao início e o foco/Tab seguem
     // na mesma linha. Os totais derivados (canal e contas) são atualizados na própria célula, sem re-render.
     // (Empresa fica NÃO-silent para o nome refletir no topo na hora.)
-    if (t.dataset.emp) setEmpresaCampo(t.dataset.emp, t.value);
+    // Empresa: salva SILENCIOSO (sem re-render) p/ o TAB não perder o foco / a tela não piscar;
+    // o nome no topo é atualizado in-place.
+    if (t.dataset.emp) { setEmpresaCampo(t.dataset.emp, t.value, { silent: true }); if (t.dataset.emp === 'nome') { const el = document.querySelector('#emp-trigger .emp-nome'); if (el) el.textContent = t.value || 'Empresa'; } }
     else if (t.dataset.contaId) { const campo = t.dataset.campo; setContaCampo(t.dataset.contaId, campo, campo === 'saldo' ? num(t.value) : t.value, { silent: true }); if (campo === 'saldo') atualizarTotalContas(container); }
     else if (t.dataset.canalId && t.dataset.campo === 'nome') renomearCanal(t.dataset.canalId, t.value, { silent: true });
     else if (t.dataset.canalId && t.dataset.mes !== undefined) { setCanalMeta(t.dataset.canalId, ano, Number(t.dataset.mes), num(t.value), { silent: true }); atualizarTotalCanal(container, t.dataset.canalId, ano); }
