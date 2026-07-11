@@ -2,7 +2,7 @@
 
 > Auditoria e execução de 10/07/2026. App: SPA vanilla JS (ES modules, sem build) + Supabase
 > (Auth, Postgres/RLS, Edge Functions), servido em GitHub Pages (`bragarpaulo.github.io/GPR`) e
-> Cloudflare Pages (`mapa-gestao-financeira.pages.dev`).
+> Cloudflare Pages (domínio `gpr.p4gestao.com.br`).
 
 ## Sumário executivo
 A auditoria (feita como engenharia sênior, dois eixos independentes) confirmou que **os fundamentos já

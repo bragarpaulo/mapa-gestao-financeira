@@ -18,7 +18,7 @@ const SR = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
 let GREEN_SECRET = Deno.env.get('GREEN_WEBHOOK_SECRET') || '';
 let RESEND_KEY = Deno.env.get('RESEND_API_KEY') || '';
 let FROM_EMAIL = Deno.env.get('FROM_EMAIL') || 'GPR <onboarding@resend.dev>';
-let APP_URL = Deno.env.get('APP_URL') || 'https://bragarpaulo.github.io/mapa-gestao-financeira/';
+let APP_URL = Deno.env.get('APP_URL') || 'https://gpr.p4gestao.com.br';
 const H = { 'apikey': SR, 'Authorization': `Bearer ${SR}`, 'Content-Type': 'application/json' };
 
 async function carregarConfig() {

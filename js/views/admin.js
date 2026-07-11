@@ -333,7 +333,7 @@ async function loadResend(body) {
     <div class="grid grid-2">
       <label class="cfg-field">API key <input id="r-key" type="password" value="${esc(cfg.resend_api_key || '')}" placeholder="re_..."></label>
       <label class="cfg-field">Remetente (FROM_EMAIL) <input id="r-from" type="text" value="${esc(cfg.from_email || '')}" placeholder="GPR <nao-responda@seudominio>"></label>
-      <label class="cfg-field">URL do app (APP_URL) <input id="r-app" type="text" value="${esc(cfg.app_url || '')}" placeholder="https://mapa-gestao-financeira.pages.dev/"></label>
+      <label class="cfg-field">URL do app (APP_URL) <input id="r-app" type="text" value="${esc(cfg.app_url || '')}" placeholder="https://gpr.p4gestao.com.br"></label>
     </div>
     <button class="btn btn-sm btn-primary" id="blk-save" style="margin-top:12px">Salvar</button>
     <p class="hint" style="margin-top:8px">Para o reset de senha bonito, configure também o SMTP do Resend em Authentication.</p>`;

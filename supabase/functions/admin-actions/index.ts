@@ -35,7 +35,7 @@ async function countMembers(ownerId: string, exceptId: string): Promise<number> 
 
 async function emailMembro(to: string, nome: string, senha: string, dono: string) {
   const cfg: any = {}; const r = await rest('integrations?select=key,value'); if (Array.isArray(r.data)) r.data.forEach((x: any) => { if (x.value) cfg[x.key] = x.value; });
-  const KEY = cfg.resend_api_key, FROM = cfg.from_email || 'GPR <onboarding@resend.dev>', APP = cfg.app_url || 'https://mapa-gestao-financeira.pages.dev/';
+  const KEY = cfg.resend_api_key, FROM = cfg.from_email || 'GPR <onboarding@resend.dev>', APP = cfg.app_url || 'https://gpr.p4gestao.com.br';
   if (!KEY) return;
   const html = `<div style="font-family:Arial,sans-serif;max-width:480px;margin:auto;padding:24px;color:#0F172A">
     <div style="font-size:20px;font-weight:800">GPR <span style="color:#64748B;font-weight:600;font-size:12px">&middot; Gest&atilde;o Para Resultado</span></div>
@@ -48,7 +48,7 @@ async function emailMembro(to: string, nome: string, senha: string, dono: string
 }
 async function emailAcesso(to: string, nome: string, senha: string): Promise<boolean> {
   const cfg: any = {}; const r = await rest('integrations?select=key,value'); if (Array.isArray(r.data)) r.data.forEach((x: any) => { if (x.value) cfg[x.key] = x.value; });
-  const KEY = cfg.resend_api_key, FROM = cfg.from_email || 'GPR <onboarding@resend.dev>', APP = cfg.app_url || 'https://mapa-gestao-financeira.pages.dev/';
+  const KEY = cfg.resend_api_key, FROM = cfg.from_email || 'GPR <onboarding@resend.dev>', APP = cfg.app_url || 'https://gpr.p4gestao.com.br';
   if (!KEY) return false;
   const html = `<div style="font-family:Arial,sans-serif;max-width:480px;margin:auto;padding:24px;color:#0F172A">
     <div style="font-size:20px;font-weight:800">GPR <span style="color:#64748B;font-weight:600;font-size:12px">&middot; Gest&atilde;o Para Resultado</span></div>
