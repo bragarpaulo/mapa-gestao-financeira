@@ -130,6 +130,7 @@ export function render(container) {
     <div class="section-title">📅 Fluxo mensal (${ano})</div>
     <div class="table-wrap">
       <table><thead><tr><th style="min-width:200px">Fluxo de Caixa</th>${thMeses(ano)}</tr></thead><tbody>${body}</tbody></table>
+      ${f.ancorado ? `<div class="hint" style="margin-top:8px">⚓ O <strong>Saldo em Conta</strong> é ancorado na <strong>data-base</strong> das contas (Configurações): recebimentos/pagamentos <strong>anteriores</strong> à data-base já estão dentro do saldo informado e não somam de novo — por isso ele pode diferir de "Saldo Inicial + Resultado".</div>` : ''}
     </div>
 
     <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(300px,1fr));margin-top:18px">

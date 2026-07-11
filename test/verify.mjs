@@ -3,7 +3,7 @@
 import { demoData } from '../js/seed.js';
 import { DEFAULT_CATEGORIES, DEFAULT_RECEITA_CATEGORIES, STATUS_VENDA, ABAS } from '../js/config.js';
 import {
-  calcDRE, calcDFC, calcFluxo, calcDashboard, calcMetaxReal, calcPlanxReal, calcControleMetas, vendasDerivadas, despesasDerivadas, calcSeriesMultiAno, calcVendasPorChave,
+  calcDRE, calcDFC, calcFluxo, calcDashboard, calcMetaxReal, calcPlanxReal, calcControleMetas, vendasDerivadas, despesasDerivadas, calcSeriesMultiAno, calcVendasPorChave, calcProjecao,
 } from '../js/calc.js';
 import { expandirRecorrencia } from '../js/recurrence.js';
 import { anosDisponiveis, noPeriodo, anosSelecionados } from '../js/util.js';
@@ -235,6 +235,33 @@ const ORDEM_MENU = [
 check('Menu: ordem dos ids inalterada', ABAS.map(a => a.id).join(',') === ORDEM_MENU.map(x => x[0]).join(','), `(${ABAS.map(a => a.id).join(',')})`);
 check('Menu: nomes inalterados', ABAS.map(a => a.nome).join('|') === ORDEM_MENU.map(x => x[1]).join('|'));
 check('Menu: Cadastro renomeado para Configurações', ABAS.find(a => a.id === 'cadastro')?.nome === 'Configurações');
+
+console.log('\n== CAIXA: SALDO ANCORADO NA DATA-BASE (cenário do Paulo: 100k hoje ≠ 152k) ==');
+{
+  const dHoje = new Date();
+  const hojeIso = `${dHoje.getFullYear()}-${String(dHoje.getMonth() + 1).padStart(2, '0')}-${String(dHoje.getDate()).padStart(2, '0')}`;
+  const Y = dHoje.getFullYear();
+  const jan5 = `${Y}-01-05`;
+  const mkS = (dataBase) => ({
+    ...s,
+    ui: { anoAtivo: Y, anosSel: [Y], periodoMeses: [] },
+    contas: [{ id: 'c1', nome: 'Banco', tipo: 'Conta Corrente', saldo: 100000, dataBase }],
+    vendas: [{ id: 'v1', dataVenda: jan5, dataVencimento: jan5, dataRecebimento: jan5, valor: 10000, canalId: '', categoriaReceitaId: 'rec_bruta', contaId: 'c1', pedido: '', produto: '', cliente: '', parcela: '', obs: '' }],
+    despesas: [{ id: 'd1', dataVencimento: jan5, mesCompetencia: `jan/${Y}`, categoriaId: s.categorias[0].id, valor: 4000, dataPagamentoReal: jan5, contaId: 'c1', descricao: '', fornecedor: '', formaPagamento: 'PIX', obs: '' }],
+  });
+  if (hojeIso > jan5) {   // só faz sentido se hoje for depois de 05/jan
+    const fAnc = calcFluxo(mkS(hojeIso));       // data-base HOJE → movimentos de jan NÃO somam no saldo
+    check('data-base hoje: saldo do ano = 100.000 (movimento antigo não soma)', fAnc.saldoConta[11] === 100000, `(${fAnc.saldoConta[11]})`);
+    check('data-base hoje: flag ancorado ligada', fAnc.ancorado === true);
+    check('relatório de movimento intacto (Entradas jan = 10.000)', fAnc.entradas[0] === 10000);
+    const fLivre = calcFluxo(mkS(''));           // SEM data-base → comportamento legado (soma tudo)
+    check('sem data-base: saldo = 106.000 (legado)', fLivre.saldoConta[11] === 106000, `(${fLivre.saldoConta[11]})`);
+    const pAnc = calcProjecao(mkS(hojeIso));
+    check('projeção 30d parte de 100.000 com data-base hoje', pAnc.base === 100000, `(${pAnc.base})`);
+    const pLivre = calcProjecao(mkS(''));
+    check('projeção 30d parte de 106.000 sem data-base', pLivre.base === 106000, `(${pLivre.base})`);
+  } else { console.log('  (pulado: hoje <= 05/jan)'); }
+}
 
 console.log('\n== ACESSO: LIBERAÇÃO GRÁTIS GERAL (decideAccess) ==');
 {

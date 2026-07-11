@@ -108,6 +108,17 @@ function montarDemonstrativo(s, cols, entradas, catVal) {
 }
 
 // ===== Fluxo de Caixa =====================================================
+// ÂNCORA DA DATA-BASE: o saldo informado em cada conta vale NA data-base dela (Configurações).
+// Movimento de caixa ANTERIOR à data-base já está embutido no saldo informado — somá-lo de novo
+// inflaria o caixa (ex.: lançou R$100k hoje e o sistema mostrava R$152k somando o realizado do ano).
+// Regra: um recebimento/pagamento só entra no SALDO se a data do evento for >= data-base da sua conta;
+// movimento sem conta usa a MENOR data-base entre as contas; conta/estado sem data-base = conta tudo (legado).
+export function cutoffCaixa(s) {
+  const byConta = {}; let min = null;
+  for (const c of (s.contas || [])) { const db = String(c.dataBase || '').slice(0, 10); byConta[c.id] = db; if (db && (min === null || db < min)) min = db; }
+  const fallback = min || '';
+  return (contaId, dataEvento) => { const db = (contaId && byConta[contaId] !== undefined) ? byConta[contaId] : fallback; return !db || (String(dataEvento || '') >= db); };
+}
 export function calcFluxo(s) {
   const ano = anoAtivo(s);
   const cols = chavesAno(ano);
@@ -117,8 +128,14 @@ export function calcFluxo(s) {
   const entradas = cols.map(k => vd.reduce((a, v) => a + (v.status === STATUS_VENDA.CONCLUIDO && v.mesAnoRecebimento === k ? num(v.valor) : 0), 0));
   const saidas = cols.map(k => dd.reduce((a, d) => a + (d.pago && d.mesPagamento === k ? num(d.valor) : 0), 0));
   const resultado = cols.map((_, i) => entradas[i] - saidas[i]);
+  // SALDO ancorado na data-base: só movimentos >= data-base da conta entram (entradas/saídas acima
+  // seguem completas — são o RELATÓRIO de quanto entrou/saiu; o saldo é outra pergunta).
+  const conta = cutoffCaixa(s);
+  const entradasCx = cols.map(k => vd.reduce((a, v) => a + (v.status === STATUS_VENDA.CONCLUIDO && v.mesAnoRecebimento === k && conta(v.contaId, v.dataRecebimento || v.dataVencimento) ? num(v.valor) : 0), 0));
+  const saidasCx = cols.map(k => dd.reduce((a, d) => a + (d.pago && d.mesPagamento === k && conta(d.contaId, d.dataPagamentoReal || d.dataVencimento) ? num(d.valor) : 0), 0));
+  const resultadoCx = cols.map((_, i) => entradasCx[i] - saidasCx[i]);
   const saldoInicial = [], saldoConta = [];
-  for (let i = 0; i < 12; i++) { saldoInicial[i] = i === 0 ? saldoInicialAno : saldoConta[i - 1]; saldoConta[i] = saldoInicial[i] + resultado[i]; }
+  for (let i = 0; i < 12; i++) { saldoInicial[i] = i === 0 ? saldoInicialAno : saldoConta[i - 1]; saldoConta[i] = saldoInicial[i] + resultadoCx[i]; }
   const prevIn = new Set([STATUS_VENDA.PREVISTO, STATUS_VENDA.HOJE, STATUS_VENDA.ATRASADO]);
   const prevOut = new Set([STATUS_DESPESA.APAGAR, STATUS_DESPESA.HOJE, STATUS_DESPESA.ATRASADO]);
   const entradasPrev = cols.map(k => vd.reduce((a, v) => a + (prevIn.has(v.status) && v.mesAnoRecebimento === k ? num(v.valor) : 0), 0));
@@ -128,7 +145,8 @@ export function calcFluxo(s) {
   const aVencerIn = new Set([STATUS_VENDA.PREVISTO, STATUS_VENDA.HOJE]);
   const entradasAVencer = cols.map(k => vd.reduce((a, v) => a + (aVencerIn.has(v.status) && v.mesAnoRecebimento === k ? num(v.valor) : 0), 0));
   const saldoPrevisto = cols.map((_, i) => saldoConta[i] + entradasPrev[i] - saidasPrev[i]);
-  return { cols, saldoInicial, entradas, saidas, resultado, saldoConta, entradasPrev, entradasAVencer, saidasPrev, saldoPrevisto, saldoInicialAno };
+  const ancorado = resultadoCx.some((v, i) => v !== resultado[i]);   // a data-base cortou algum movimento?
+  return { cols, saldoInicial, entradas, saidas, resultado, saldoConta, entradasPrev, entradasAVencer, saidasPrev, saldoPrevisto, saldoInicialAno, entradasCx, saidasCx, resultadoCx, ancorado };
 }
 // TODAS as contas a receber ATRASADAS (vencidas e não recebidas) do ano, agrupadas por canal.
 // Sem filtro de mês — antes só pegava um mês exato de recebimento, deixando as demais fora.
@@ -275,9 +293,10 @@ export function calcAging(s) {
 export function calcProjecao(s, ndias = 30) {
   const hj = hoje();
   const vd = vendasDerivadas(s), dd = despesasDerivadas(s);
+  const conta = cutoffCaixa(s);   // saldo ancorado na data-base (movimento anterior já está no saldo informado)
   const base = s.contas.reduce((a, c) => a + num(c.saldo), 0)
-    + vd.filter(v => v.status === STATUS_VENDA.CONCLUIDO).reduce((a, v) => a + num(v.valor), 0)
-    - dd.filter(d => d.pago).reduce((a, d) => a + num(d.valor), 0);
+    + vd.filter(v => v.status === STATUS_VENDA.CONCLUIDO && conta(v.contaId, v.dataRecebimento || v.dataVencimento)).reduce((a, v) => a + num(v.valor), 0)
+    - dd.filter(d => d.pago && conta(d.contaId, d.dataPagamentoReal || d.dataVencimento)).reduce((a, d) => a + num(d.valor), 0);
   const labels = [], saldo = [];
   let acc = base;
   for (let i = 0; i <= ndias; i++) {
