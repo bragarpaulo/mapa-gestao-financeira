@@ -32,7 +32,9 @@ export function statusDespesa(d) {
 }
 export function vendaDerivada(v) {
   const mesVenda = mesAno(v.dataVenda);
-  const mesAnoRec = mesAno(v.dataVencimento);
+  // Caixa pela data REAL: venda recebida entra no mês da Data de Recebimento (o dinheiro entrou aí);
+  // venda em aberto usa o Vencimento como PREVISÃO (previsto/atrasado/inadimplência).
+  const mesAnoRec = v.dataRecebimento ? mesAno(v.dataRecebimento) : mesAno(v.dataVencimento);
   return { ...v, mesVenda, mesAnoRecebimento: mesAnoRec, valorAVista: (mesVenda && mesVenda === mesAnoRec) ? num(v.valor) : 0, status: statusVenda(v) };
 }
 export function despesaDerivada(d) {

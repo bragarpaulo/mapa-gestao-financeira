@@ -236,6 +236,28 @@ check('Menu: ordem dos ids inalterada', ABAS.map(a => a.id).join(',') === ORDEM_
 check('Menu: nomes inalterados', ABAS.map(a => a.nome).join('|') === ORDEM_MENU.map(x => x[1]).join('|'));
 check('Menu: Cadastro renomeado para Configurações', ABAS.find(a => a.id === 'cadastro')?.nome === 'Configurações');
 
+console.log('\n== CAIXA: ENTRADA PELO MÊS DO RECEBIMENTO REAL (não do vencimento) ==');
+{
+  const Y = new Date().getFullYear();
+  const sRec = {
+    ...s,
+    ui: { anoAtivo: Y, anosSel: [Y], periodoMeses: [] },
+    contas: [{ id: 'c1', nome: 'Banco', tipo: 'Conta Corrente', saldo: 0, dataBase: '' }],
+    // venceu em JAN, mas o dinheiro ENTROU em MARÇO
+    vendas: [{ id: 'v1', dataVenda: `${Y}-01-05`, dataVencimento: `${Y}-01-15`, dataRecebimento: `${Y}-03-10`, valor: 7000, canalId: '', categoriaReceitaId: 'rec_bruta', contaId: 'c1', pedido: '', produto: '', cliente: '', parcela: '', obs: '' }],
+    despesas: [],
+  };
+  const f = calcFluxo(sRec);
+  check('Fluxo: entrada cai em MARÇO (mês do recebimento)', f.entradas[2] === 7000, `(mar=${f.entradas[2]})`);
+  check('Fluxo: NADA em janeiro (vencimento não é caixa)', f.entradas[0] === 0, `(jan=${f.entradas[0]})`);
+  const dfc = calcDFC(sRec);
+  check('DFC: entrada em março', dfc.entradas[2] === 7000 && dfc.entradas[0] === 0, `(jan=${dfc.entradas[0]} mar=${dfc.entradas[2]})`);
+  // venda EM ABERTO continua prevista pelo VENCIMENTO
+  const sAberto = { ...sRec, vendas: [{ ...sRec.vendas[0], dataRecebimento: '' }] };
+  const f2 = calcFluxo(sAberto);
+  check('em aberto: previsão segue no mês do vencimento (jan)', (f2.entradasPrev[0] + f2.entradasAVencer[0]) > 0 || f2.entradasPrev[0] === 7000, `(prevJan=${f2.entradasPrev[0]})`);
+}
+
 console.log('\n== CAIXA: SALDO ANCORADO NA DATA-BASE (cenário do Paulo: 100k hoje ≠ 152k) ==');
 {
   const dHoje = new Date();
