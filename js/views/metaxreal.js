@@ -22,6 +22,8 @@ export function render(container) {
   // Linha de atingimento: % acumulado (realizado ÷ meta) mês a mês.
   let cumMeta = 0, cumReal = 0;
   const atingAcum = metaMes.map((mv, i) => { cumMeta += mv; cumReal += realMes[i]; return cumMeta > 0 ? cumReal / cumMeta : null; });
+  // Selo por mês (pílula colorida na base do gráfico): % da meta atingida NAQUELE mês.
+  const pctMes = metaMes.map((mv, i) => (mv > 0 ? realMes[i] / mv : null));
 
   const resumo = d.canais.map(c => {
     const dif = c.realYTD - c.metaYTD;
@@ -48,7 +50,7 @@ export function render(container) {
   container.innerHTML = `
     ${pageHead('Meta de Receita × Realizado', `Meta × realizado · ${d.mesLabel}`)}
     ${exportToolbar()}
-    <div class="callout">O <strong>% atingido</strong> compara realizado × meta no período (<strong>${esc(d.mesLabel)}</strong>). A <strong>linha verde</strong> mostra o atingimento acumulado mês a mês.</div>
+    <div class="callout">O <strong>% atingido</strong> compara realizado × meta no período (<strong>${esc(d.mesLabel)}</strong>). Os <strong>selos coloridos</strong> na base do gráfico mostram a % da meta atingida <strong>em cada mês</strong> (🟢 ≥100% · 🟠 80–99% · 🔴 &lt;80%); a <strong>linha verde</strong> é o atingimento acumulado.</div>
 
     <div class="card chart-box" style="margin-top:14px">
       <h3>Meta × Realizado (mês a mês) ${eyeToggle('ch-mxr', chartLabelOn('ch-mxr'))}</h3>
@@ -77,7 +79,7 @@ export function render(container) {
       ${chartWidget({ titulo: '👥 Vendas por Cliente', segName: 'mxrCli', view: cliView, data: cliData, canvasId: 'ch-mxr-cli', dlName: 'Vendas-por-cliente', labelOn: chartLabelOn('ch-mxr-cli') })}
     </div>`;
 
-  charts.metaRealChart('ch-mxr', MESES, metaMes, realMes, chartLabelOn('ch-mxr'), atingAcum);
+  charts.metaRealChart('ch-mxr', MESES, metaMes, realMes, chartLabelOn('ch-mxr'), atingAcum, pctMes);
   const montarBreak = (view, canvasId, data) => {
     if (view === 'tabela') return;
     const labels = data.map(x => x.label), vals = data.map(x => x.valor);

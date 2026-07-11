@@ -204,7 +204,7 @@ export function pizza(id, labels, valores, onClick, mostrar = true) {
 }
 
 // Meta × Realizado (2 séries de barras) + linha opcional de % atingido acumulado.
-export function metaRealChart(id, labels, meta, real, mostrar = true, atingAcum = null) {
+export function metaRealChart(id, labels, meta, real, mostrar = true, atingAcum = null, pctMes = null) {
   const datasets = [
     { label: 'Meta', data: meta, backgroundColor: '#94A3B8', borderRadius: 4 },
     { label: 'Realizado', data: real, backgroundColor: '#1D4ED8', borderRadius: 4 },
@@ -220,7 +220,34 @@ export function metaRealChart(id, labels, meta, real, mostrar = true, atingAcum 
     });
     options.scales.y1 = { position: 'right', beginAtZero: true, grid: { drawOnChartArea: false }, ticks: { font: { size: 10 }, callback: (v) => v + '%' } };
   }
-  return make(id, { type: 'bar', data: { labels, datasets }, options, plugins: mostrar ? [barValueLabels] : [] });
+  const plugins = mostrar ? [barValueLabels] : [];
+  if (pctMes) {
+    // Selo de % ATINGIDA NO MÊS (realizado ÷ meta do próprio mês), sempre visível: pílula colorida
+    // logo abaixo do eixo (🟢 ≥100% · 🟠 80-99% · 🔴 <80%). Os rótulos dos meses descem (ticks.padding)
+    // p/ abrir o vão da pílula.
+    options.scales.x.ticks = { ...(options.scales.x.ticks || {}), padding: 22 };
+    plugins.push({
+      id: 'pctMesLabels',
+      afterDatasetsDraw(chart) {
+        const { ctx, chartArea, scales } = chart;
+        const x = scales.x; if (!x) return;
+        ctx.save();
+        ctx.font = '700 10px Inter, system-ui, sans-serif';
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        pctMes.forEach((p, i) => {
+          if (p == null || i >= labels.length) return;
+          const cx = x.getPixelForValue(i);
+          const txt = `${Math.round(p * 100)}%`;
+          const cor = p >= 1 ? '#16A34A' : p >= 0.8 ? '#D97706' : '#DC2626';
+          const w = ctx.measureText(txt).width + 12, h = 15, cy = chartArea.bottom + 11;
+          ctx.fillStyle = cor; roundRect(ctx, cx - w / 2, cy - h / 2, w, h, 7); ctx.fill();
+          ctx.fillStyle = '#fff'; ctx.fillText(txt, cx, cy + 0.5);
+        });
+        ctx.restore();
+      },
+    });
+  }
+  return make(id, { type: 'bar', data: { labels, datasets }, options, plugins });
 }
 
 // Linha de projeção (saldo no tempo).
