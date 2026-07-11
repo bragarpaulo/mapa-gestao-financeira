@@ -7,13 +7,17 @@ import * as cloud from '../cloud.js';
 
 async function meuId() { const u = await cloud.currentUser(); return u ? u.id : null; }
 
+// IA no WhatsApp OCULTA dos usuários (desativada até liberarmos oficialmente). Ligue aqui (true) p/ reativar
+// — volta o card "IA no WhatsApp" nesta tela e o "& WhatsApp" no título/menu (ver app.js).
+const WHATSAPP_IA_ATIVO = false;
+
 export function render(container) {
   container.innerHTML = `
-    ${pageHead('Equipe & WhatsApp', 'Convide sua equipe (mesmos dados da conta) e autorize números do WhatsApp para a IA')}
+    ${pageHead(WHATSAPP_IA_ATIVO ? 'Equipe & WhatsApp' : 'Equipe', WHATSAPP_IA_ATIVO ? 'Convide sua equipe (mesmos dados da conta) e autorize números do WhatsApp para a IA' : 'Convide sua equipe — cada membro acessa os mesmos dados da conta')}
     <div class="card card-pad" id="eq-team"><div class="hint">carregando…</div></div>
-    <div class="card card-pad" id="eq-wa" style="margin-top:14px"><div class="hint">carregando…</div></div>`;
+    ${WHATSAPP_IA_ATIVO ? `<div class="card card-pad" id="eq-wa" style="margin-top:14px"><div class="hint">carregando…</div></div>` : ''}`;
   loadTeam(container);
-  loadWa(container);
+  if (WHATSAPP_IA_ATIVO) loadWa(container);
 }
 
 async function loadTeam(c) {

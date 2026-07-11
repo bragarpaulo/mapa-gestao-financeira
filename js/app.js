@@ -222,7 +222,7 @@ periodBarEl.addEventListener('click', (e) => {
 
 function buildNav() {
   let html = ABAS.map(a => `<a class="nav-item" data-route="${a.id}" href="#${a.id}" title="${esc(a.nome)}"><span class="nav-ico">${a.icone}</span><span class="nav-label">${esc(a.nome)}</span></a>`).join('');
-  if (_isOwner) html += `<a class="nav-item" data-route="equipe" href="#equipe" title="Equipe & WhatsApp"><span class="nav-ico">${EQUIPE_ICO}</span><span class="nav-label">Equipe & WhatsApp</span></a>`;
+  if (_isOwner) html += `<a class="nav-item" data-route="equipe" href="#equipe" title="Equipe"><span class="nav-ico">${EQUIPE_ICO}</span><span class="nav-label">Equipe</span></a>`;
   if (_isAdmin) html += `<a class="nav-item nav-admin" data-route="admin" href="#admin" title="GPR Core"><span class="nav-ico">${ADMIN_ICO}</span><span class="nav-label">GPR Core</span></a>`;
   navEl.innerHTML = html;
 }
