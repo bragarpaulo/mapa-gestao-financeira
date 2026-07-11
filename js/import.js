@@ -1,7 +1,7 @@
 // import.js — MODELO ÚNICO de planilha (.xlsx) para download + importação (SheetJS / XLSX global).
 // A planilha traz tudo: Empresa, Contas, Canais e Metas, Categorias, Vendas e Despesas.
 // Ao importar, o sistema CRIA UMA EMPRESA NOVA com os dados (não mexe nas existentes).
-import { update, uid, addEmpresaVazia } from './store.js';
+import { update, uid, addEmpresaVazia, getState } from './store.js';
 import { FORMAS_PAGAMENTO, MESES, GRUPOS } from './config.js';
 import { num } from './util.js';
 import { ensureXlsx } from './lazylibs.js';
@@ -46,6 +46,48 @@ export function baixarModelo() {
       setTimeout(() => URL.revokeObjectURL(url), 1500);
     })
     .catch(err => alert('Não foi possível baixar o modelo: ' + ((err && err.message) || err)));
+}
+
+// ---- Exportar Excel (empresa ATIVA) — mesmas abas/colunas do importador (round-trip) ----
+// Só os DADOS (sem gráficos/análises): Empresa, Contas, Canais e Metas, Categorias, Orçamento,
+// Vendas e Despesas. Clientes/Produtos/Recebedores são rederivados dos lançamentos ao reimportar.
+export async function exportarExcel() {
+  try { await ensureXlsx(); } catch (e) {}
+  if (!libOk()) { alert('Biblioteca de planilha não carregou (sem internet?).'); return; }
+  const s = getState();
+  const n = (x) => Number(x) || 0;
+  const br = (iso) => { const m = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{2})/); return m ? `${m[3]}/${m[2]}/${m[1]}` : ''; };
+  const catNome = (id) => (s.categorias.find(c => c.id === id) || {}).nome || '';
+  const canalNome = (id) => (s.canais.find(c => c.id === id) || {}).nome || '';
+  const contaNome = (id) => (s.contas.find(c => c.id === id) || {}).nome || '';
+  const recNome = (id) => (s.receitaCategorias.find(c => c.id === id) || {}).nome || '';
+  const grupoNome = (gid) => (GRUPOS.find(g => g.id === gid) || {}).id || gid || 'operacionais';
+  const anos = (s.empresa.anos && s.empresa.anos.length) ? s.empresa.anos : [new Date().getFullYear()];
+  const meses = (arr) => { const o = {}; MES_COL.forEach((m, i) => o[m] = n((arr || [])[i])); return o; };
+
+  const shEmp = [{ 'Nome da empresa': s.empresa.nome || '', 'CNPJ': s.empresa.cnpj || '', 'Data de início (dd/mm/aaaa)': br(s.empresa.dataInicio) }];
+  const shCon = s.contas.map(c => ({ 'Conta (banco/caixa)': c.nome || '', 'Tipo': c.tipo || 'Conta Corrente', 'Saldo inicial': n(c.saldo), 'Data-base (dd/mm/aaaa)': br(c.dataBase) }));
+  const shCan = []; s.canais.forEach(c => anos.forEach(a => shCan.push({ 'Canal': c.nome || '', 'Ano': a, ...meses((c.metas || {})[a]) })));
+  const shCat = s.categorias.map(c => ({ 'Categoria': c.nome || '', 'Grupo (DRE)': grupoNome(c.grupo) }));
+  const shOrc = [];
+  Object.keys(s.orcamento || {}).forEach(a => { const byCat = s.orcamento[a] || {}; Object.keys(byCat).forEach(cid => { const arr = byCat[cid] || []; if (arr.some(v => n(v))) shOrc.push({ 'Categoria': catNome(cid), 'Ano': Number(a), ...meses(arr) }); }); });
+  const shV = s.vendas.map(v => ({ 'Data da Venda': br(v.dataVenda), 'Nº do Pedido': v.pedido || '', 'Canal': canalNome(v.canalId), 'Categoria de Receita': recNome(v.categoriaReceitaId), 'Produto/Pedido': v.produto || '', 'Cliente': v.cliente || '', 'Parcela': v.parcela || '', 'Valor': n(v.valor), 'Data de Vencimento': br(v.dataVencimento), 'Data de Recebimento': br(v.dataRecebimento), 'Conta': contaNome(v.contaId), 'Observações': v.obs || '' }));
+  const shD = s.despesas.map(d => ({ 'Data de Vencimento': br(d.dataVencimento), 'Mês Competência': d.mesCompetencia || '', 'Descrição': d.descricao || '', 'Categoria': catNome(d.categoriaId), 'Valor': n(d.valor), 'Recebedor/Fornecedor': d.fornecedor || '', 'Conta': contaNome(d.contaId), 'Forma de Pagamento': d.formaPagamento || '', 'Pago em': br(d.dataPagamentoReal), 'Observações': d.obs || '' }));
+
+  const wb = XLSX.utils.book_new();
+  const add = (rows, nome, header) => XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows.length ? rows : [header]), nome);
+  add(shEmp, 'Empresa', shEmp[0]);
+  add(shCon, 'Contas', { 'Conta (banco/caixa)': '', 'Tipo': '', 'Saldo inicial': '', 'Data-base (dd/mm/aaaa)': '' });
+  add(shCan, 'Canais e Metas', { 'Canal': '', 'Ano': '', ...meses([]) });
+  add(shCat, 'Categorias', { 'Categoria': '', 'Grupo (DRE)': '' });
+  add(shOrc, 'Orçamento', { 'Categoria': '', 'Ano': '', ...meses([]) });
+  add(shV, 'Vendas', { 'Data da Venda': '', 'Nº do Pedido': '', 'Canal': '', 'Categoria de Receita': '', 'Produto/Pedido': '', 'Cliente': '', 'Parcela': '', 'Valor': '', 'Data de Vencimento': '', 'Data de Recebimento': '', 'Conta': '', 'Observações': '' });
+  add(shD, 'Despesas', { 'Data de Vencimento': '', 'Mês Competência': '', 'Descrição': '', 'Categoria': '', 'Valor': '', 'Recebedor/Fornecedor': '', 'Conta': '', 'Forma de Pagamento': '', 'Pago em': '', 'Observações': '' });
+
+  const d = new Date();
+  const ymd = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const nome = (s.empresa.nome || 'GPR').replace(/[\\/:*?"<>|]/g, ' ').trim().slice(0, 60);
+  XLSX.writeFile(wb, `${nome} - GPR ${ymd}.xlsx`);
 }
 
 // ---- Importação ----------------------------------------------------------

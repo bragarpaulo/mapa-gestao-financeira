@@ -17,7 +17,7 @@ import * as cloud from '../cloud.js';
 import { TIPOS_CONTA, MESES } from '../config.js';
 import { pageHead, options, moneyInput } from '../ui.js';
 import { esc, num, fmtBRL0, anoAtivo, metaArr } from '../util.js';
-import { baixarModelo, importarArquivo } from '../import.js';
+import { baixarModelo, importarArquivo, exportarExcel } from '../import.js';
 
 // Alça de arrastar (reordenar). chk = seleção múltipla. sectionHead = cabeçalho de card.
 const handle = (id, tbl) => `<td class="col-mini"><span class="drag-handle" draggable="true" data-drag="${id}" data-tbl="${tbl}" title="Arraste para reordenar">⠿</span></td>`;
@@ -166,10 +166,14 @@ export function render(container) {
 
     <details class="card card-pad cad-section">
       <summary>💾 Backup dos seus dados</summary>
-      <div class="hint" style="margin:6px 0 10px">Exporte um arquivo com <strong>todos os seus dados</strong> (todas as empresas) para guardar como segurança. Dá para restaurar a qualquer momento. Guarde o arquivo em local seguro — ele contém seus dados financeiros.</div>
+      <div class="hint" style="margin:6px 0 10px">Baixe seus dados em <strong>Excel</strong> (uma aba por tipo: Empresa, Contas, Canais e Metas, Categorias, Orçamento, Vendas e Despesas — só os dados). É legível e dá para <strong>reimportar depois</strong> pela seção "Importar dados por planilha" acima. Refere-se à <strong>empresa atual</strong>.</div>
       <div class="card-head-actions">
-        <button class="btn btn-sm" data-action="exportar-backup">⬇ Exportar backup</button>
-        <button class="btn btn-sm" data-action="restaurar-backup">⬆ Restaurar backup</button>
+        <button class="btn btn-sm btn-primary" data-action="exportar-excel">⬇ Exportar Excel (empresa atual)</button>
+      </div>
+      <div class="hint" style="margin:14px 0 6px">Backup <strong>completo</strong> (todas as empresas, com metas/orçamento/plataformas): arquivo <strong>.json</strong> — restaura tudo exatamente como está. Guarde em local seguro.</div>
+      <div class="card-head-actions">
+        <button class="btn btn-sm" data-action="exportar-backup">⬇ Backup completo (.json)</button>
+        <button class="btn btn-sm" data-action="restaurar-backup">⬆ Restaurar backup (.json)</button>
         <input type="file" id="backup-file" accept=".json,application/json" style="display:none">
       </div>
     </details>
@@ -273,6 +277,7 @@ function wire(container, ano) {
     else if (action === 'add-prod') { const c = addProduto({ silent: true }); appendRow(container, '#tb-produtos', produtoRow(c), c.id); }
     else if (action === 'rm-prod') removerProduto(id);
     else if (action === 'baixar-modelo') baixarModelo();
+    else if (action === 'exportar-excel') exportarExcel();
     else if (action === 'importar') container.querySelector('#import-file').click();
     else if (action === 'restaurar-backup') container.querySelector('#backup-file').click();
     else if (action === 'exportar-backup') {
