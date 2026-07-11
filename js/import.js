@@ -21,6 +21,24 @@ function parseData(v) {
 }
 const libOk = () => typeof XLSX !== 'undefined';
 
+// Normaliza o "Mês Competência" da planilha p/ o formato interno `jan/2026` (minúsculo — é o que o
+// select da tela de Despesas e a DRE usam). Aceita: data (Date/ISO/dd/mm/aaaa), "Jan/2026",
+// "JANEIRO/2026", "01/2026", "1/26"… Sem valor válido → cai no MÊS DO VENCIMENTO (mesmo âncora do app);
+// sem vencimento → vazio.
+function normComp(v, venc) {
+  let c = (v instanceof Date && !isNaN(v)) ? isoOf(v) : String(v || '').trim();
+  if (c) {
+    const cd = parseData(c);
+    if (cd) return `${MESES[Number(cd.slice(5, 7)) - 1]}/${cd.slice(0, 4)}`;
+    const low = c.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+    let m = low.match(/^([a-z]{3})[a-z]*[\s\/\-.]*(\d{2,4})$/);   // jan/2026, janeiro-26, JAN 2026…
+    if (m) { const mi = MESES.indexOf(m[1]); if (mi >= 0) { let y = m[2]; if (y.length === 2) y = '20' + y; return `${MESES[mi]}/${y}`; } }
+    m = low.match(/^(\d{1,2})[\s\/\-.](\d{2,4})$/);               // 01/2026, 1-26…
+    if (m) { const mi = Number(m[1]) - 1; if (mi >= 0 && mi < 12) { let y = m[2]; if (y.length === 2) y = '20' + y; return `${MESES[mi]}/${y}`; } }
+  }
+  return venc ? `${MESES[Number(venc.slice(5, 7)) - 1]}/${venc.slice(0, 4)}` : '';
+}
+
 // Mapa de apelidos de grupo do DRE → id interno.
 const GRUPO_ALIAS = {
   'deducoes': 'deducoes', 'deducoes de receita': 'deducoes',
@@ -50,7 +68,7 @@ export async function baixarModelo() {
     receitaCategorias: DEFAULT_RECEITA_CATEGORIES.map(c => ({ ...c })),
     orcamento: { [ano]: { [catEx.id]: orc } },
     vendas: [{ id: 'v_ex', dataVenda: `${ano}-01-05`, pedido: '1001', canalId: 'ch_ex', categoriaReceitaId: recEx.id, produto: 'Produto A (exemplo)', cliente: 'Cliente A (exemplo)', parcela: '', valor: 2500, dataVencimento: `${ano}-01-05`, dataRecebimento: `${ano}-01-05`, contaId: 'c_ex', obs: 'Exemplo — apague e preencha com os seus dados' }],
-    despesas: [{ id: 'd_ex', dataVencimento: `${ano}-01-10`, mesCompetencia: `Jan/${ano}`, descricao: 'Aluguel (exemplo)', categoriaId: catEx.id, valor: 1200, fornecedor: 'Fornecedor A (exemplo)', contaId: 'c_ex', formaPagamento: 'PIX', dataPagamentoReal: `${ano}-01-10`, obs: 'Exemplo — apague e preencha com os seus dados' }],
+    despesas: [{ id: 'd_ex', dataVencimento: `${ano}-01-10`, mesCompetencia: `jan/${ano}`, descricao: 'Aluguel (exemplo)', categoriaId: catEx.id, valor: 1200, fornecedor: 'Fornecedor A (exemplo)', contaId: 'c_ex', formaPagamento: 'PIX', dataPagamentoReal: `${ano}-01-10`, obs: 'Exemplo — apague e preencha com os seus dados' }],
   };
   try { _baixarWb(_wbEmpresa(exemplo), 'Modelo GPR'); }
   catch (err) { alert('Não foi possível gerar o modelo: ' + ((err && err.message) || err)); }
@@ -241,8 +259,7 @@ export async function importarArquivo(file, cb) {
         const pago = parseData(vAl(r, km, 'Pago em'));
         const val = num(vAl(r, km, 'Valor'));
         const obs = String(vAl(r, km, 'Observações') || '');
-        let comp = String(vAl(r, km, 'Mês Competência') || '').trim();
-        const cd = parseData(comp); if (cd) comp = `${MESES[Number(cd.slice(5, 7)) - 1]}/${cd.slice(0, 4)}`;
+        const comp = normComp(vAl(r, km, 'Mês Competência'), venc);
         if (!venc && !val) continue;
         s.despesas.push({ id: uid('d'), dataVencimento: venc, mesCompetencia: comp, descricao: String(vAl(r, km, 'Descrição') || ''), categoriaId: matchCat(vAl(r, km, 'Categoria')), valor: val, fornecedor: ensureForn(vAl(r, km, 'Recebedor/Fornecedor', 'Fornecedor', 'Recebedor')), contaId: findConta(vAl(r, km, 'Conta', 'Conta Corrente')), formaPagamento: matchForma(vAl(r, km, 'Forma de Pagamento')), dataPagamentoReal: pago, obs });
         resumo.despesas++; ano(venc); ano(pago);
